@@ -1,0 +1,7 @@
+[
+  {
+    "origin": ["http://localhost:55400"],
+    "method": ["GET"],
+    "maxAgeSeconds": 3600
+  }
+]
