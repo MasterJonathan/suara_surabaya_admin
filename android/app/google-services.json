@@ -1,0 +1,238 @@
+{
+  "project_info": {
+    "project_number": "387510652840",
+    "project_id": "kp-ss-a8e05",
+    "storage_bucket": "kp-ss-a8e05.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:387510652840:android:ddb0672b95b2c5deb7579d",
+        "android_client_info": {
+          "package_name": "com.example.suara_surabaya_admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCsEViMz16L139vfu8vhaaorZChSK_Fr8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "387510652840-1oghjg6unjmq2nl5r2oi8uofbo2dj4av.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "net.suarasurabaya.mobile"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:387510652840:android:233eb50bc6044cddb7579d",
+        "android_client_info": {
+          "package_name": "com.kpss.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "387510652840-c9votdcjh5evqtbdckqb1agf2qu6pa57.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kpss.app",
+            "certificate_hash": "f25db3e27db213085d4e2f1cb20edab35342cd48"
+          }
+        },
+        {
+          "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCsEViMz16L139vfu8vhaaorZChSK_Fr8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "387510652840-1oghjg6unjmq2nl5r2oi8uofbo2dj4av.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "net.suarasurabaya.mobile"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:387510652840:android:9e71355c02846345b7579d",
+        "android_client_info": {
+          "package_name": "com.suara_surabaya.admin.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCsEViMz16L139vfu8vhaaorZChSK_Fr8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "387510652840-1oghjg6unjmq2nl5r2oi8uofbo2dj4av.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "net.suarasurabaya.mobile"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:387510652840:android:b401c773cd5ebcfcb7579d",
+        "android_client_info": {
+          "package_name": "id.ac.istts.suarasurabaya"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "387510652840-i1ni2mnqln8epcp0pvsmvmrp1n18gmfv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.ac.istts.suarasurabaya",
+            "certificate_hash": "3a9fc853e933c048f915e40547520ef85b81c75a"
+          }
+        },
+        {
+          "client_id": "387510652840-s7q0ojqqqnekh8hn2q98kktji6rnf0d4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.ac.istts.suarasurabaya",
+            "certificate_hash": "3ff4801e709e1690e155ce0412694cccb6b01d94"
+          }
+        },
+        {
+          "client_id": "387510652840-uhoovp31jgp0a7ojucalqstmorou8lsc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.ac.istts.suarasurabaya",
+            "certificate_hash": "cfc0b1528d123a0e81a6013b1a4997c31fcd55e3"
+          }
+        },
+        {
+          "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCsEViMz16L139vfu8vhaaorZChSK_Fr8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "387510652840-1oghjg6unjmq2nl5r2oi8uofbo2dj4av.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "net.suarasurabaya.mobile"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:387510652840:android:66ac3426c1437026b7579d",
+        "android_client_info": {
+          "package_name": "net.suarasurabaya.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "387510652840-033o40s2tmksqfc2ns9ubi76cc48l961.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "net.suarasurabaya.mobile",
+            "certificate_hash": "3ff4801e709e1690e155ce0412694cccb6b01d94"
+          }
+        },
+        {
+          "client_id": "387510652840-j3kclk6ncgkb4oei06s0ejjp146gllnb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "net.suarasurabaya.mobile",
+            "certificate_hash": "3a9fc853e933c048f915e40547520ef85b81c75a"
+          }
+        },
+        {
+          "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCsEViMz16L139vfu8vhaaorZChSK_Fr8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "387510652840-6rmnthupe2schbb4dhks5b6em7brcqn1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "387510652840-1oghjg6unjmq2nl5r2oi8uofbo2dj4av.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "net.suarasurabaya.mobile"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
