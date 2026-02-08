@@ -1,8 +1,9 @@
 // lib/screens/dashboard/admin_call_page.dart
 
 import 'package:suara_surabaya_admin/core/theme/app_colors.dart';
-import 'package:suara_surabaya_admin/providers/dashboard/call_provider.dart';
-import 'package:suara_surabaya_admin/screens/dashboard/videocall/video_call_page.dart';
+import 'package:suara_surabaya_admin/providers/auth/authentication_provider.dart';
+import 'package:suara_surabaya_admin/providers/dashboard/call/call_provider.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/call/call_page.dart';
 import 'package:suara_surabaya_admin/widgets/common/custom_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -223,7 +224,9 @@ class _AdminCallPageState extends State<AdminCallPage> {
                           //   // await _checkUserRegistration(phoneNumber);
                           // }
 
-                          final callDetails = await callProvider.answerAndClaimCall(callDoc);
+                          final authProvider = context.read<AuthenticationProvider>();
+                          final String currentAdminName = authProvider.user?.nama ?? 'Admin';
+                          final callDetails = await callProvider.answerAndClaimCall(callDoc, currentAdminName);
                           if (callDetails != null && context.mounted) {
                             Navigator.of(context).push(
                               MaterialPageRoute(

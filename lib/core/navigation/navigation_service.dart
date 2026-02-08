@@ -8,12 +8,8 @@ enum DashboardPage {
   profile,
   
   videoCall,
+  callHistory,
   callSimulator,
-
-  changePassword,
-  settings,
-  usersAccountManagement,
-  adminManagement,
 
   temaSiaran,
   bannerTop,
@@ -21,26 +17,29 @@ enum DashboardPage {
   infoSS,
   infoSSComment,
 
-  berita,
-  kawanssManagement,
   kawanssPost,
   kawanssComment,
+  postinganTerlapor,
 
+  berita,
+
+  changePassword,
+  settings,
+  usersAccountManagement,
+  adminManagement,
+
+  socialnetworkanalysis,
+  reportCall,
   reportUserRegistration,
   reportInfoSSPost,
   reportKawanSSPost,
 
   chatManagement,
-  
-  socialnetworkanalysis,
-
   kategoriss,
 
   
 
-  postinganTerlapor,
-  reportManagement,
-  report
+
 }
 
 class NavigationService extends ChangeNotifier {

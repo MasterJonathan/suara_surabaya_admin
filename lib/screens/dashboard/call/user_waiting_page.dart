@@ -1,10 +1,10 @@
 // lib/screens/dashboard/user_waiting_page.dart
 
-import 'package:suara_surabaya_admin/screens/dashboard/videocall/video_call_page.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/call/call_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:suara_surabaya_admin/providers/dashboard/call_provider.dart';
+import 'package:suara_surabaya_admin/providers/dashboard/call/call_provider.dart';
 import 'package:suara_surabaya_admin/core/theme/app_colors.dart';
 
 class UserWaitingPage extends StatelessWidget {

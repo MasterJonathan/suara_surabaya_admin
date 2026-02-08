@@ -41,6 +41,7 @@ class CallService {
       'callerUid': callerUid, // Simpan UID Agora user
       'status': 'queued', // Status awal adalah 'queued'
       'createdAt': FieldValue.serverTimestamp(),
+      'endedAt': FieldValue.serverTimestamp(),
       'channelName': '',
       'adminId': null, // Admin ID null saat di antrian
     });

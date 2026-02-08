@@ -1,6 +1,6 @@
 import 'package:suara_surabaya_admin/core/services/firestore_service.dart';
 import 'package:suara_surabaya_admin/core/theme/app_colors.dart';
-import 'package:suara_surabaya_admin/providers/dashboard/kontributor_profile_provider.dart';
+import 'package:suara_surabaya_admin/providers/dashboard/user_profile_provider.dart';
 import 'package:suara_surabaya_admin/widgets/common/custom_card.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -19,7 +19,7 @@ class UserActivityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => KontributorProfileProvider(
+      create: (context) => UserProfileProvider(
         firestoreService: context.read<FirestoreService>(),
         kontributorId: kontributorId,
       ),
@@ -31,7 +31,7 @@ class UserActivityPage extends StatelessWidget {
           backgroundColor: AppColors.surface,
           foregroundColor: AppColors.foreground,
         ),
-        body: Consumer<KontributorProfileProvider>(
+        body: Consumer<UserProfileProvider>(
           builder: (context, provider, child) {
             if (provider.isLoading) {
               return const Center(child: CircularProgressIndicator());
@@ -48,7 +48,7 @@ class UserActivityPage extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileLayout(BuildContext context, KontributorProfileProvider provider) {
+  Widget _buildProfileLayout(BuildContext context, UserProfileProvider provider) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Row(
@@ -85,7 +85,7 @@ class UserActivityPage extends StatelessWidget {
 
 // --- SIDEBAR PROFIL ---
 class _ProfileSidebar extends StatelessWidget {
-  final KontributorProfileProvider provider;
+  final UserProfileProvider provider;
   const _ProfileSidebar({required this.provider});
 
   @override
@@ -216,7 +216,7 @@ class _ProfileSidebar extends StatelessWidget {
 
 // --- KONTEN UTAMA (TABS) ---
 class _MainContent extends StatelessWidget {
-  final KontributorProfileProvider provider;
+  final UserProfileProvider provider;
   const _MainContent({required this.provider});
 
   @override
@@ -445,7 +445,7 @@ class _MainContent extends StatelessWidget {
                 Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
                 const SizedBox(width: 4),
                 Text(
-                  '${timeFormatter.format(call.startTime)} - ${timeFormatter.format(call.endTime)}',
+                  timeFormatter.format(call.createdAt),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 const SizedBox(width: 12),
@@ -461,8 +461,8 @@ class _MainContent extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(dateFormatter.format(call.startTime), style: const TextStyle(fontWeight: FontWeight.w500)),
-                Text(timeago.format(call.startTime, locale: 'id'), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                Text(dateFormatter.format(call.createdAt), style: const TextStyle(fontWeight: FontWeight.w500)),
+                Text(timeago.format(call.createdAt, locale: 'id'), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
               ],
             ),
           );

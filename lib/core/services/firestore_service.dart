@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:suara_surabaya_admin/core/utils/constants.dart';
+import 'package:suara_surabaya_admin/models/dashboard/call/call_history_log_model.dart';
 import 'package:suara_surabaya_admin/models/dashboard/infoss/infoss_reply_model.dart';
 import 'package:suara_surabaya_admin/models/dashboard/kawanss/kawanss_comment_model.dart';
-import 'package:suara_surabaya_admin/models/dashboard/user_activity/call_history_model.dart';
 import 'package:suara_surabaya_admin/models/dashboard/infoss/banner_model.dart';
 import 'package:suara_surabaya_admin/models/dashboard/infoss/popup_model.dart';
 import 'package:suara_surabaya_admin/models/dashboard/infoss/tema_siaran_model.dart';
@@ -391,6 +391,55 @@ class FirestoreService {
       'deletedAt': isDeleted ? FieldValue.serverTimestamp() : null,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+
+  // ===========================================================================
+  // CALL HISTORY
+  // ===========================================================================
+
+  // 1. Fetch Murni Pagination (Tanpa Filter Tanggal)
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllCallHistoryBatch({
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('calls')
+        // Kita tidak filter isDeleted karena log panggilan biasanya permanen
+        // Tapi kita filter status agar yang 'dialing' (sedang menelpon) tidak masuk history
+        // .where('status', whereIn: ['accepted', 'rejected', 'timeout', 'cancelled', 'completed', 'missed'])
+        .orderBy('createdAt', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get() as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 2. Fetch dengan Filter Tanggal
+  Future<QuerySnapshot<Map<String, dynamic>>> getCallHistoryBatch({
+    required DateTime startDate,
+    required DateTime endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('calls')
+        // .where('status', whereIn: ['accepted', 'rejected', 'timeout', 'cancelled', 'completed', 'missed'])
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+        .orderBy('createdAt', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get() as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+    Stream<List<CallHistoryLogModel>> getCallHistoryByUser(String userId) {
+    return Stream.value([]);
   }
 
   // ===========================================================================
@@ -1179,9 +1228,7 @@ class FirestoreService {
         );
   }
 
-  Stream<List<CallHistoryModel>> getCallHistoryByUser(String userId) {
-    return Stream.value([]);
-  }
+
 
   Future<List<UserModel>> getUsersInDateRange(
     DateTime startDate,
