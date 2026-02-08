@@ -3,6 +3,7 @@ import 'package:suara_surabaya_admin/screens/dashboard/infoss/infoss_comment_pag
 import 'package:suara_surabaya_admin/screens/dashboard/kawanss/kawanss_comment_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/report_data/infoss_post_report_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/report_data/kawanss_post_report_page.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/user_management/admin_access_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/videocall/admin_call_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/berita/berita_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/chat_management_page.dart';
@@ -19,7 +20,7 @@ import 'package:suara_surabaya_admin/screens/dashboard/overview_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/profile_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/user_management/change_password_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/user_management/settings_page.dart';
-import 'package:suara_surabaya_admin/screens/dashboard/user_management/users_page.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/user_management/general_users_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/videocall/call_simulator_page.dart';
 import 'package:suara_surabaya_admin/widgets/dashboard/app_bar_actions.dart';
 import 'package:suara_surabaya_admin/widgets/dashboard/sidebar.dart';
@@ -48,8 +49,10 @@ class DashboardLayout extends StatelessWidget {
         return const ChangePasswordPage();
       case DashboardPage.settings:
         return const SettingsPage();
-      case DashboardPage.userAdminManagement:
-        return const UsersAdminPage();
+      case DashboardPage.usersAccountManagement:
+        return const GeneralUserPage();
+      case DashboardPage.adminManagement:
+        return const AdminAccessPage();
 
       case DashboardPage.temaSiaran:
         return const TemaSiaranPage();
@@ -202,8 +205,10 @@ class DashboardLayout extends StatelessWidget {
         return 'Ganti Password'; 
       case DashboardPage.settings:
         return 'Website Settings';
-      case DashboardPage.userAdminManagement:
-        return 'User Admin Management';
+      case DashboardPage.usersAccountManagement:
+        return 'User Account Management';
+      case DashboardPage.adminManagement:
+        return 'Admin Management';
       
 
 
@@ -220,20 +225,6 @@ class DashboardLayout extends StatelessWidget {
       case DashboardPage.kategoriss:
         return 'Kategori Management';
 
-      // Halaman-halaman lama dari contoh awal
-      case DashboardPage
-          .users: // Jika 'users' dan 'userAdminManagement' berbeda
-        return 'User Management';
-      case DashboardPage.products:
-        return 'Product Management';
-      case DashboardPage.calendar:
-        return 'Calendar';
-      case DashboardPage.charts:
-        return 'Data Charts';
-      case DashboardPage.forms:
-        return 'Form Elements';
-      case DashboardPage.profile:
-        return 'User Profile';
 
       // Default jika ada case yang terlewat
       default:

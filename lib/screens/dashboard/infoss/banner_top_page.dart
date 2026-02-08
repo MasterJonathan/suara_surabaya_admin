@@ -1,10 +1,12 @@
-import 'package:suara_surabaya_admin/core/theme/app_colors.dart';
-import 'package:suara_surabaya_admin/models/dashboard/infoss/banner_model.dart';
-import 'package:suara_surabaya_admin/providers/dashboard/infoss/banner_provider.dart';
-import 'package:suara_surabaya_admin/widgets/common/custom_card.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:suara_surabaya_admin/core/theme/app_colors.dart';
+import 'package:suara_surabaya_admin/models/dashboard/infoss/banner_model.dart';
+import 'package:suara_surabaya_admin/providers/auth/authentication_provider.dart';
+import 'package:suara_surabaya_admin/providers/dashboard/infoss/banner_provider.dart';
+import 'package:suara_surabaya_admin/widgets/common/custom_card.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 
 class BannerTopPage extends StatefulWidget {
   const BannerTopPage({super.key});
@@ -14,70 +16,150 @@ class BannerTopPage extends StatefulWidget {
 }
 
 class _BannerTopPageState extends State<BannerTopPage> {
-  late List<BannerTopModel> _filteredData;
-  final TextEditingController _searchController = TextEditingController();
   final DateFormat _dateFormatter = DateFormat('yyyy-MM-dd\nHH:mm:ss');
-  final DateFormat _rangeDateFormatter = DateFormat('dd MMMM yyyy HH:mm:ss');
-  String _entriesToShow = '10';
+  final DateFormat _rangeDateFormatter = DateFormat('dd MMM yyyy HH:mm');
+
+  // Sorting
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
 
   @override
   void initState() {
     super.initState();
-    final provider = Provider.of<BannerProvider>(context, listen: false);
-    _filteredData = provider.banners;
-
-    _searchController.addListener(() {
-      setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<BannerProvider>().loadInitialData();
     });
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  // --- FEEDBACK ---
+  void _showFeedback(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
-  void _performFilter(String query, List<BannerTopModel> allBanners) {
-    if (query.isEmpty) {
-      _filteredData = allBanners;
-    } else {
-      _filteredData =
-          allBanners.where((banner) {
-            final namaBanner = banner.namaBanner.toLowerCase();
-            final dipostingOleh = banner.dipostingOleh.toLowerCase();
-            return namaBanner.contains(query.toLowerCase()) ||
-                dipostingOleh.contains(query.toLowerCase());
-          }).toList();
-    }
+  // --- FILTER DIALOG ---
+  Future<void> _showSearchFilterDialog() async {
+    final provider = context.read<BannerProvider>();
+    final TextEditingController queryController = TextEditingController();
+    String searchField = 'Nama Banner';
+    DateTime startDate = DateTime.now().subtract(const Duration(days: 30));
+    DateTime endDate = DateTime.now();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Filter & Cari Banner'),
+              content: SizedBox(
+                width: 450,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text("Rentang Tanggal Posting", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 300,
+                        child: SfDateRangePicker(
+                          onSelectionChanged: (DateRangePickerSelectionChangedArgs args) {
+                            if (args.value is PickerDateRange) {
+                              startDate = args.value.startDate ?? DateTime.now();
+                              endDate = args.value.endDate ?? args.value.startDate ?? DateTime.now();
+                            }
+                          },
+                          selectionMode: DateRangePickerSelectionMode.range,
+                          initialSelectedRange: PickerDateRange(startDate, endDate),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text("Kriteria Pencarian", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              value: searchField,
+                              items: ['Nama Banner', 'Oleh']
+                                  .map((label) => DropdownMenuItem(value: label, child: Text(label)))
+                                  .toList(),
+                              onChanged: (v) => setDialogState(() => searchField = v!),
+                              decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 3,
+                            child: TextField(
+                              controller: queryController,
+                              decoration: const InputDecoration(labelText: 'Kata Kunci...', border: OutlineInputBorder()),
+                              onSubmitted: (_) => _doSearch(provider, searchField, queryController.text, startDate, endDate),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+                ElevatedButton(
+                  onPressed: () => _doSearch(provider, searchField, queryController.text, startDate, endDate),
+                  child: const Text('Cari'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
-  // Di dalam kelas _BannerTopPageState
+  void _doSearch(BannerProvider provider, String field, String query, DateTime start, DateTime end) {
+    if (query.trim().isEmpty) return;
+    final adjustedEnd = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    provider.searchBanners(
+      searchField: field,
+      searchQuery: query,
+      startDate: start,
+      endDate: adjustedEnd,
+    );
+    Navigator.of(context).pop();
+  }
 
+  // --- ADD / EDIT DIALOG ---
   void _showAddEditDialog({BannerTopModel? banner}) {
     final isEditing = banner != null;
     final formKey = GlobalKey<FormState>();
     final namaController = TextEditingController(text: banner?.namaBanner);
-    final imageUrlController = TextEditingController(
-      text: banner?.bannerImageUrl,
-    );
-
-    // State untuk dropdown posisi
+    final imageUrlController = TextEditingController(text: banner?.bannerImageUrl);
     String selectedPosition = banner?.position ?? 'Top';
-
     DateTime tanggalMulai = banner?.tanggalAktifMulai ?? DateTime.now();
-    DateTime tanggalSelesai =
-        banner?.tanggalAktifSelesai ??
-        DateTime.now().add(const Duration(days: 30));
+    DateTime tanggalSelesai = banner?.tanggalAktifSelesai ?? DateTime.now().add(const Duration(days: 30));
+
+    final authProvider = context.read<AuthenticationProvider>();
+    final currentUserName = authProvider.user?.nama ?? 'Admin';
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            Future<void> selectDate(
-              BuildContext context,
-              bool isStartDate,
-            ) async {
+            bool isSaving = false;
+
+            Future<void> selectDate(bool isStartDate) async {
               final DateTime? picked = await showDatePicker(
                 context: context,
                 initialDate: isStartDate ? tanggalMulai : tanggalSelesai,
@@ -87,30 +169,60 @@ class _BannerTopPageState extends State<BannerTopPage> {
               if (picked != null) {
                 final TimeOfDay? pickedTime = await showTimePicker(
                   context: context,
-                  initialTime: TimeOfDay.fromDateTime(
-                    isStartDate ? tanggalMulai : tanggalSelesai,
-                  ),
+                  initialTime: TimeOfDay.fromDateTime(isStartDate ? tanggalMulai : tanggalSelesai),
                 );
                 if (pickedTime != null) {
                   setStateDialog(() {
-                    if (isStartDate) {
-                      tanggalMulai = DateTime(
-                        picked.year,
-                        picked.month,
-                        picked.day,
-                        pickedTime.hour,
-                        pickedTime.minute,
-                      );
-                    } else {
-                      tanggalSelesai = DateTime(
-                        picked.year,
-                        picked.month,
-                        picked.day,
-                        pickedTime.hour,
-                        pickedTime.minute,
-                      );
-                    }
+                    final newDate = DateTime(picked.year, picked.month, picked.day, pickedTime.hour, pickedTime.minute);
+                    if (isStartDate) tanggalMulai = newDate; else tanggalSelesai = newDate;
                   });
+                }
+              }
+            }
+
+            Future<void> handleSave() async {
+              if (formKey.currentState!.validate()) {
+                setStateDialog(() => isSaving = true);
+                final provider = context.read<BannerProvider>();
+
+                try {
+                  bool success;
+                  if (isEditing) {
+                    final updatedBanner = banner!.copyWith(
+                      namaBanner: namaController.text,
+                      bannerImageUrl: imageUrlController.text,
+                      position: selectedPosition,
+                      tanggalAktifMulai: tanggalMulai,
+                      tanggalAktifSelesai: tanggalSelesai,
+                    );
+                    success = await provider.updateBanner(updatedBanner);
+                  } else {
+                    final newBanner = BannerTopModel(
+                      id: '',
+                      namaBanner: namaController.text,
+                      bannerImageUrl: imageUrlController.text,
+                      position: selectedPosition,
+                      tanggalAktifMulai: tanggalMulai,
+                      tanggalAktifSelesai: tanggalSelesai,
+                      status: true,
+                      hits: 0,
+                      tanggalPosting: DateTime.now(),
+                      dipostingOleh: currentUserName,
+                    );
+                    success = await provider.addBanner(newBanner);
+                  }
+
+                  if (!mounted) return;
+                  if (success) {
+                    Navigator.pop(context);
+                    _showFeedback(isEditing ? "Banner berhasil diperbarui" : "Banner berhasil ditambahkan");
+                  } else {
+                    _showFeedback("Gagal menyimpan data", isError: true);
+                  }
+                } catch (e) {
+                   if (mounted) _showFeedback("Terjadi kesalahan", isError: true);
+                } finally {
+                  if (mounted) setStateDialog(() => isSaving = false);
                 }
               }
             }
@@ -124,143 +236,34 @@ class _BannerTopPageState extends State<BannerTopPage> {
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextFormField(
-                          controller: namaController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nama Banner',
-                          ),
-                          validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-                        ),
+                        TextFormField(controller: namaController, decoration: const InputDecoration(labelText: 'Nama Banner'), validator: (v) => v!.isEmpty ? 'Wajib diisi' : null),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: imageUrlController,
-                          decoration: const InputDecoration(
-                            labelText: 'Image URL',
-                          ),
-                          validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-                        ),
+                        TextFormField(controller: imageUrlController, decoration: const InputDecoration(labelText: 'Image URL'), validator: (v) => v!.isEmpty ? 'Wajib diisi' : null),
                         const SizedBox(height: 16),
-                         Text(
-                          'Tanggal Aktif Mulai',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 4),
-                        InkWell(
-                          onTap: () => selectDate(context, true),
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              prefixIcon: Icon(Icons.calendar_today_outlined),
-                            ),
-                            child: Text(
-                              DateFormat(
-                                'dd MMMM yyyy, HH:mm',
-                              ).format(tanggalMulai),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Tanggal Aktif Selesai',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 4),
-                        InkWell(
-                          onTap: () => selectDate(context, false),
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              prefixIcon: Icon(Icons.calendar_today_outlined),
-                            ),
-                            child: Text(
-                              DateFormat(
-                                'dd MMMM yyyy, HH:mm',
-                              ).format(tanggalSelesai),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // --- DROPDOWN BARU UNTUK POSISI ---
                         DropdownButtonFormField<String>(
                           value: selectedPosition,
-                          decoration: const InputDecoration(
-                            labelText: 'Posisi Banner',
-                          ),
+                          decoration: const InputDecoration(labelText: 'Posisi Banner'),
                           items: const [
-                            DropdownMenuItem(
-                              value: 'Top',
-                              child: Text('Banner Top (Landscape)'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Normal',
-                              child: Text('Banner Normal (Square)'),
-                            ),
+                            DropdownMenuItem(value: 'Top', child: Text('Banner Top (Landscape)')),
+                            DropdownMenuItem(value: 'Normal', child: Text('Banner Normal (Square)')),
                           ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setStateDialog(() {
-                                selectedPosition = value;
-                              });
-                            }
-                          },
+                          onChanged: (v) => setStateDialog(() => selectedPosition = v!),
                         ),
-
-                        // ------------------------------------
                         const SizedBox(height: 20),
-                        // ... (Input Tanggal Mulai & Selesai tidak berubah)
+                        Row(children: [
+                          Expanded(child: InkWell(onTap: () => selectDate(true), child: InputDecorator(decoration: const InputDecoration(labelText: 'Mulai Aktif', prefixIcon: Icon(Icons.calendar_today)), child: Text(DateFormat('dd MMM yyyy, HH:mm').format(tanggalMulai))))),
+                          const SizedBox(width: 16),
+                          Expanded(child: InkWell(onTap: () => selectDate(false), child: InputDecorator(decoration: const InputDecoration(labelText: 'Selesai Aktif', prefixIcon: Icon(Icons.calendar_today)), child: Text(DateFormat('dd MMM yyyy, HH:mm').format(tanggalSelesai))))),
+                        ]),
                       ],
                     ),
                   ),
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      final provider = context.read<BannerProvider>();
-                      final now = DateTime.now();
-
-                      if (isEditing) {
-                        final updatedBanner = BannerTopModel(
-                          id: banner.id,
-                          namaBanner: namaController.text,
-                          bannerImageUrl: imageUrlController.text,
-                          position:
-                              selectedPosition, // <-- GUNAKAN POSISI YANG DIPILIH
-                          tanggalAktifMulai: tanggalMulai,
-                          tanggalAktifSelesai: tanggalSelesai,
-                          status: banner.status,
-                          hits: banner.hits,
-                          tanggalPosting: banner.tanggalPosting,
-                          dipostingOleh: banner.dipostingOleh,
-                        );
-                        await provider.updateBanner(updatedBanner);
-                      } else {
-                        final newBanner = BannerTopModel(
-                          id: '',
-                          namaBanner: namaController.text,
-                          bannerImageUrl: imageUrlController.text,
-                          position:
-                              selectedPosition, // <-- GUNAKAN POSISI YANG DIPILIH
-                          tanggalAktifMulai: tanggalMulai,
-                          tanggalAktifSelesai: tanggalSelesai,
-                          status: true,
-                          hits: 0,
-                          tanggalPosting: now,
-                          dipostingOleh: 'Admin',
-                        );
-                        await provider.addBanner(newBanner);
-                      }
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  child: const Text('Simpan'),
-                ),
+                TextButton(onPressed: isSaving ? null : () => Navigator.pop(context), child: const Text('Batal')),
+                ElevatedButton(onPressed: isSaving ? null : handleSave, child: isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text('Simpan')),
               ],
             );
           },
@@ -269,230 +272,190 @@ class _BannerTopPageState extends State<BannerTopPage> {
     );
   }
 
+  // --- DELETE HANDLER ---
+  Future<void> _handleDelete(BannerProvider provider, String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Banner'),
+        content: const Text('Yakin ingin menghapus banner ini?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppColors.error), onPressed: () => Navigator.pop(context, true), child: const Text('Hapus', style: TextStyle(color: Colors.white))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await provider.deleteBanner(id);
+      if (success) _showFeedback("Banner berhasil dihapus");
+      else _showFeedback("Gagal menghapus banner", isError: true);
+    }
+  }
+
+  // --- SORTING ---
+  void _onSort(int columnIndex, bool ascending) {
+    setState(() {
+      _sortColumnIndex = columnIndex;
+      _sortAscending = ascending;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Consumer<BannerProvider>(
-      builder: (context, provider, child) {
-        _performFilter(_searchController.text, provider.banners);
-
-        return Column(
-          key: const PageStorageKey('bannerTopPage'),
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CustomCard(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTableControls(),
-                  const SizedBox(height: 20),
-                  if (provider.state == BannerViewState.Busy &&
-                      provider.banners.isEmpty)
-                    const Center(child: CircularProgressIndicator())
-                  else if (provider.errorMessage != null)
-                    Center(child: Text('Error: ${provider.errorMessage}'))
-                  else
-                    SizedBox(
-                      width: double.infinity,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: _buildDataTable(provider),
+    return SafeArea(
+      child: Consumer<BannerProvider>(
+        builder: (context, provider, child) {
+          return Column(
+            key: const PageStorageKey('bannerTopPage'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: CustomCard(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTableControls(provider),
+                          const SizedBox(height: 20),
+                          if (provider.state == BannerViewState.Busy && provider.banners.isEmpty)
+                            const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+                          else if (provider.errorMessage != null)
+                             // Tampilkan error generik di UI tapi detail di Console
+                             const Center(child: Text("Gagal memuat data (Cek Log)", style: TextStyle(color: Colors.red)))
+                          else if (provider.banners.isEmpty)
+                            const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("Tidak ada data ditemukan.")))
+                          else
+                            Column(
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: _buildDataTable(provider),
+                                  ),
+                                ),
+                                if (provider.showContinueSearchButton)
+                                  _buildContinueSearchButton(provider)
+                                else if (provider.hasMoreData && provider.banners.isNotEmpty)
+                                  _buildLoadMoreButton(provider),
+                                const SizedBox(height: 30),
+                              ],
+                            ),
+                        ],
                       ),
                     ),
-                ],
+                  ),
+                ),
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildTableControls() {
+  Widget _buildTableControls(BannerProvider provider) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
-            SizedBox(
-              width: 250,
-              child: TextField(
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  labelText: 'Search',
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-              ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.filter_list, size: 16),
+              label: const Text('Filter & Cari'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18)),
+              onPressed: _showSearchFilterDialog,
             ),
-            const SizedBox(width: 8),
-            const Text('Show'),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: AppColors.foreground.withValues(alpha: 0.2),
-                ),
-                borderRadius: BorderRadius.circular(4),
+            if (provider.isSearching) ...[
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: () => provider.resetSearch(),
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18)),
+                child: const Tooltip(message: 'Reset Filter', child: Icon(Icons.refresh, size: 18)),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _entriesToShow,
-                  items:
-                      <String>['10', '25', '50', '100']
-                          .map(
-                            (String value) => DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            ),
-                          )
-                          .toList(),
-                  onChanged:
-                      (String? newValue) =>
-                          setState(() => _entriesToShow = newValue!),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text('entries'),
+            ],
           ],
         ),
-
         ElevatedButton.icon(
           icon: const Icon(Icons.add, size: 16),
-          label: const Text('Tambah Banner Top Kawan SS'),
+          label: const Text('Tambah Banner'),
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18)),
           onPressed: () => _showAddEditDialog(),
         ),
       ],
     );
   }
 
-  // Di dalam kelas _BannerTopPageState
+  Widget _buildContinueSearchButton(BannerProvider provider) {
+    return Padding(padding: const EdgeInsets.only(top: 16.0), child: OutlinedButton.icon(icon: const Icon(Icons.search), onPressed: () => provider.continueSearch(), label: const Text("Lanjutkan Pencarian (Scan 200 Berikutnya)")));
+  }
+
+  Widget _buildLoadMoreButton(BannerProvider provider) {
+    return Container(margin: const EdgeInsets.only(top: 20.0), width: double.infinity, child: provider.state == BannerViewState.LoadingMore ? const Center(child: CircularProgressIndicator()) : OutlinedButton.icon(onPressed: () => provider.continueSearch(), icon: const Icon(Icons.arrow_downward, size: 16), label: const Text("Muat Lebih Banyak Data (Load More)"), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16))));
+  }
 
   Widget _buildDataTable(BannerProvider provider) {
-    return DataTable(
-      columns: const [
-        DataColumn(label: Text('Nama Banner')),
-        DataColumn(label: Text('Position')), // <-- KOLOM BARU
-        DataColumn(label: Text('Tanggal Aktif')),
-        DataColumn(label: Text('Banner Top')),
-        DataColumn(label: Text('Status')),
-        DataColumn(label: Text('Hits')),
-        DataColumn(label: Text('Tanggal\nPosting')),
-        DataColumn(label: Text('Diposting\nOleh')),
-        DataColumn(label: Text('Aksi')),
-      ],
-      rows:
-          _filteredData.map((banner) {
-            return DataRow(
-              cells: [
-                DataCell(Text(banner.namaBanner)),
-                // --- DATA CELL BARU ---
-                DataCell(
-                  Chip(
-                    label: Text(banner.position),
-                    backgroundColor:
-                        banner.position == 'Top'
-                            ? AppColors.primary.withValues(alpha: 0.1)
-                            : AppColors.warning.withValues(alpha: 0.1),
-                    labelStyle: TextStyle(
-                      fontSize: 12,
-                      color:
-                          banner.position == 'Top'
-                              ? AppColors.primary
-                              : AppColors.warning,
-                    ),
-                  ),
-                ),
-                // -----------------------
-                DataCell(
-                  Text(
-                    '${_rangeDateFormatter.format(banner.tanggalAktifMulai)} Sampai\n${_rangeDateFormatter.format(banner.tanggalAktifSelesai)}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 200,
-                    child: Image.network(
-                      banner.bannerImageUrl,
-                      fit: BoxFit.contain,
-                      errorBuilder:
-                          (c, o, s) => const Icon(
-                            Icons.image_not_supported,
-                            color: AppColors.error,
-                          ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  Chip(
-                    label: Text(banner.status ? 'Active' : 'Inactive'),
-                    backgroundColor:
-                        banner.status
-                            ? AppColors.success.withValues(alpha: 0.1)
-                            : AppColors.error.withValues(alpha: 0.1),
-                    labelStyle: TextStyle(
-                      color:
-                          banner.status ? AppColors.success : AppColors.error,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                  ),
-                ),
-                DataCell(Text(banner.hits.toString())),
-                DataCell(Text(_dateFormatter.format(banner.tanggalPosting))),
-                DataCell(Text(banner.dipostingOleh)),
-                DataCell(
-                  Row(
-                    children: [
-                      _actionButton(
-                        icon: Icons.edit,
-                        color: AppColors.primary,
-                        tooltip: 'Edit Banner',
-                        onPressed: () => _showAddEditDialog(banner: banner),
-                      ),
-                      const SizedBox(width: 8),
-                      _actionButton(
-                        icon: Icons.close,
-                        color: AppColors.error,
-                        tooltip: 'Delete Banner',
-                        onPressed:
-                            () async => await provider.deleteBanner(banner.id),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
+    final List<BannerTopModel> sortedData = List.from(provider.banners);
+    if (_sortColumnIndex != null) {
+      sortedData.sort((a, b) {
+        int result = 0;
+        switch (_sortColumnIndex) {
+          case 0: result = a.namaBanner.compareTo(b.namaBanner); break;
+          case 1: result = a.position.compareTo(b.position); break;
+          case 2: result = a.tanggalAktifMulai.compareTo(b.tanggalAktifMulai); break;
+          case 4: result = (a.status ? 1 : 0).compareTo(b.status ? 1 : 0); break;
+          case 5: result = a.hits.compareTo(b.hits); break;
+          case 6: result = a.tanggalPosting.compareTo(b.tanggalPosting); break;
+          case 7: result = a.dipostingOleh.compareTo(b.dipostingOleh); break;
+        }
+        return _sortAscending ? result : -result;
+      });
+    }
+
+    return Theme(
+      data: Theme.of(context).copyWith(dataTableTheme: DataTableThemeData(headingRowColor: MaterialStateColor.resolveWith((states) => AppColors.primary), headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), iconTheme: const IconThemeData(color: Colors.white)),
+      child: DataTable(
+        sortColumnIndex: _sortColumnIndex,
+        sortAscending: _sortAscending,
+        columns: [
+          DataColumn(label: const Text('Nama Banner'), onSort: _onSort),
+          DataColumn(label: const Text('Position'), onSort: _onSort),
+          DataColumn(label: const Text('Tanggal Aktif'), onSort: _onSort),
+          const DataColumn(label: Text('Gambar')),
+          DataColumn(label: const Text('Status'), onSort: _onSort),
+          DataColumn(label: const Text('Hits'), numeric: true, onSort: _onSort),
+          DataColumn(label: const Text('Tanggal\nPosting'), onSort: _onSort),
+          DataColumn(label: const Text('Diposting\nOleh'), onSort: _onSort),
+          const DataColumn(label: Text('Aksi')),
+        ],
+        rows: sortedData.map((banner) {
+          return DataRow(
+            cells: [
+              DataCell(Text(banner.namaBanner)),
+              DataCell(Chip(label: Text(banner.position), backgroundColor: banner.position == 'Top' ? AppColors.primary.withOpacity(0.1) : AppColors.warning.withOpacity(0.1))),
+              DataCell(Text('${_rangeDateFormatter.format(banner.tanggalAktifMulai)} s/d\n${_rangeDateFormatter.format(banner.tanggalAktifSelesai)}', style: const TextStyle(fontSize: 12))),
+              DataCell(SizedBox(width: 120, height: 60, child: Image.network(banner.bannerImageUrl, fit: BoxFit.contain, errorBuilder: (c, o, s) => const Icon(Icons.broken_image)))),
+              DataCell(Chip(label: Text(banner.status ? 'Active' : 'Inactive'), backgroundColor: banner.status ? AppColors.success.withOpacity(0.1) : AppColors.error.withOpacity(0.1))),
+              DataCell(Text(banner.hits.toString())),
+              DataCell(Text(_dateFormatter.format(banner.tanggalPosting))),
+              DataCell(Text(banner.dipostingOleh)),
+              DataCell(Row(children: [
+                _actionButton(icon: Icons.edit, color: AppColors.primary, tooltip: 'Edit', onPressed: () => _showAddEditDialog(banner: banner)),
+                const SizedBox(width: 8),
+                _actionButton(icon: Icons.close, color: AppColors.error, tooltip: 'Delete', onPressed: () => _handleDelete(provider, banner.id)),
+              ])),
+            ],
+          );
+        }).toList(),
+      ),
     );
   }
 
-  Widget _actionButton({
-    required IconData icon,
-    required Color color,
-    required String tooltip,
-    VoidCallback? onPressed,
-  }) {
-    return SizedBox(
-      width: 32,
-      height: 32,
-      child: ElevatedButton(
-        onPressed: onPressed ?? () {},
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-          padding: EdgeInsets.zero,
-        ),
-        child: Tooltip(message: tooltip, child: Icon(icon, size: 16)),
-      ),
-    );
+  Widget _actionButton({required IconData icon, required Color color, required String tooltip, VoidCallback? onPressed}) {
+    return SizedBox(width: 32, height: 32, child: ElevatedButton(onPressed: onPressed, style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))), child: Tooltip(message: tooltip, child: Icon(icon, size: 16))));
   }
 }

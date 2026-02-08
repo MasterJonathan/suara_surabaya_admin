@@ -1,6 +1,3 @@
-
-
-
 const String USERS_COLLECTION = 'users';
 const String PROFIL_COLLECTION = 'profil';
 const String KAWANSS_COLLECTION = 'kawanss';
@@ -21,3 +18,7 @@ const String LIVESTREAM_COLLECTION = 'liveStream';
 const String KATEGORI_INFOSS_COLLECTION = 'kategoriInfoSS';
 const String KATEGORI_KAWANSS_COLLECTION = 'kategoriKawanSS';
 const String KATEGORI_NEWS_COLLECTION = 'kategoriNews';
+
+
+const String FIREBASE_PROJECT_ID = "kp-ss-a8e05"; 
+const String FUNCTIONS_REGION = "us-central1"; 

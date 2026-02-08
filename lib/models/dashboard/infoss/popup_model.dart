@@ -1,5 +1,3 @@
-// lib/models/popup_model.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PopUpModel {
@@ -12,7 +10,7 @@ class PopUpModel {
   final int hits;
   final DateTime tanggalPosting;
   final String dipostingOleh;
-  final String position; // "Top" atau "Normal"
+  final String position;
 
   PopUpModel({
     required this.id,
@@ -39,7 +37,7 @@ class PopUpModel {
       hits: data['hits'] ?? 0,
       tanggalPosting: (data['tanggalPosting'] as Timestamp?)?.toDate() ?? DateTime.now(),
       dipostingOleh: data['dipostingOleh'] ?? '',
-      position: data['position'] ?? 'Normal',
+      position: data['position'] ?? 'Square',
     );
   }
 
@@ -55,5 +53,32 @@ class PopUpModel {
       'dipostingOleh': dipostingOleh,
       'position': position,
     };
+  }
+
+  // --- METODE COPY WITH ---
+  PopUpModel copyWith({
+    String? id,
+    String? namaPopUp,
+    DateTime? tanggalAktifMulai,
+    DateTime? tanggalAktifSelesai,
+    String? popUpImageUrl,
+    bool? status,
+    int? hits,
+    DateTime? tanggalPosting,
+    String? dipostingOleh,
+    String? position,
+  }) {
+    return PopUpModel(
+      id: id ?? this.id,
+      namaPopUp: namaPopUp ?? this.namaPopUp,
+      tanggalAktifMulai: tanggalAktifMulai ?? this.tanggalAktifMulai,
+      tanggalAktifSelesai: tanggalAktifSelesai ?? this.tanggalAktifSelesai,
+      popUpImageUrl: popUpImageUrl ?? this.popUpImageUrl,
+      status: status ?? this.status,
+      hits: hits ?? this.hits,
+      tanggalPosting: tanggalPosting ?? this.tanggalPosting,
+      dipostingOleh: dipostingOleh ?? this.dipostingOleh,
+      position: position ?? this.position,
+    );
   }
 }

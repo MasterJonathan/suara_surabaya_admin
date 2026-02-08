@@ -22,9 +22,73 @@ class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
+  // ===========================================================================
+  // USER MANAGEMENT
+  // ===========================================================================
+
+  // 1. Fetch Murni Pagination (Tanpa Filter Tanggal)
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllUsersBatch({
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection(USERS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('joinDate', descending: true); // Urutkan user baru diatas
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 2. Fetch dengan Filter Tanggal Join
+  Future<QuerySnapshot<Map<String, dynamic>>> getUsersBatch({
+    required DateTime startDate,
+    required DateTime endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection(USERS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .where(
+          'joinDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
+        .where('joinDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+        .orderBy('joinDate', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 3. Stream Realtime untuk Live Monitoring User Baru (Limit 50)
+  Stream<List<UserModel>> getUsersLiveStream({int limit = 50}) {
+    return _db
+        .collection(USERS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('joinDate', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => UserModel.fromFirestore(doc, null))
+                  .toList(),
+        );
+  }
+
   Stream<List<UserModel>> getUsersStream() {
     return _db
         .collection(USERS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
         .orderBy('nama', descending: false)
         .snapshots()
         .map(
@@ -38,44 +102,153 @@ class FirestoreService {
   Future<UserModel?> getUser(String uid) async {
     final docRef = _db.collection(USERS_COLLECTION).doc(uid);
     final docSnap = await docRef.get();
+
+    // Pastikan user ada dan tidak terhapus
     if (docSnap.exists) {
+      final data = docSnap.data();
+      if (data != null && data['isDeleted'] == true) return null;
       return UserModel.fromFirestore(docSnap, null);
     }
     return null;
   }
 
   Future<void> setUserProfile(UserModel user) {
+    // Set biasanya menimpa dokumen, jadi kita harus pastikan meta data tetap ada
+    final data = user.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    // Jika dokumen baru, set createdAt (biasanya handled by addUser, tapi untuk safety)
     return _db
         .collection(USERS_COLLECTION)
         .doc(user.id)
-        .set(user.toFirestore());
+        .set(data, SetOptions(merge: true));
   }
 
   Future<void> addUser(UserModel user) {
-    return _db
-        .collection(USERS_COLLECTION)
-        .doc(user.id)
-        .set(user.toFirestore());
+    final data = user.toFirestore();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data['isDeleted'] = false;
+    data['deletedAt'] = null;
+
+    return _db.collection(USERS_COLLECTION).doc(user.id).set(data);
   }
 
   Future<void> updateUser(UserModel user) {
-    return _db
-        .collection(USERS_COLLECTION)
-        .doc(user.id)
-        .update(user.toFirestore());
+    final data = user.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    // Hapus createdAt dari payload update agar tidak tertimpa
+    data.remove('createdAt');
+
+    return _db.collection(USERS_COLLECTION).doc(user.id).update(data);
   }
 
   Future<void> updateUserPartial(String userId, Map<String, dynamic> data) {
+    data['updatedAt'] = FieldValue.serverTimestamp();
     return _db.collection(USERS_COLLECTION).doc(userId).update(data);
   }
 
   Future<void> deleteUser(String userId) {
-    return _db.collection(USERS_COLLECTION).doc(userId).delete();
+    return _db.collection(USERS_COLLECTION).doc(userId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+
+  // 1. Ambil List Admin (Pagination)
+  Future<QuerySnapshot<Map<String, dynamic>>> getAdminsBatch({
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection(USERS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .where('role', isEqualTo: 'Admin') // Hanya ambil Admin
+        .orderBy('nama', descending: false);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get() as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 2. Cari User by Email (Untuk Promote)
+  Future<QuerySnapshot<Map<String, dynamic>>> searchUserByEmail(String email) {
+    return _db
+        .collection(USERS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+  }
+
+  // ===========================================================================
+  // KAWAN SS
+  // ===========================================================================
+
+  Stream<List<KawanssModel>> getKawanssLiveStream({int limit = 50}) {
+    return _db
+        .collection(KAWANSS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('uploadDate', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => KawanssModel.fromFirestore(doc, null))
+                  .toList(),
+        );
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllKawanssBatch({
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection(KAWANSS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('uploadDate', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 2. Fetch dengan Filter Tanggal
+  Future<QuerySnapshot<Map<String, dynamic>>> getKawanssBatch({
+    required DateTime startDate,
+    required DateTime endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection(KAWANSS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .where(
+          'uploadDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
+        .where('uploadDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+        .orderBy('uploadDate', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
   }
 
   Stream<List<KawanssModel>> getKawanssStream() {
     return _db
         .collection(KAWANSS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
         .orderBy('uploadDate', descending: true)
         .snapshots()
         .map(
@@ -86,13 +259,23 @@ class FirestoreService {
         );
   }
 
-  Future<List<KawanssModel>> getKawanssInDateRange(DateTime startDate, DateTime endDate) async {
-    // Query efisien menggunakan index uploadDate
-    final querySnapshot = await _db
-        .collection(KAWANSS_COLLECTION)
-        .where('uploadDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('uploadDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-        .get();
+  Future<List<KawanssModel>> getKawanssInDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final querySnapshot =
+        await _db
+            .collection(KAWANSS_COLLECTION)
+            .where('isDeleted', isEqualTo: false)
+            .where(
+              'uploadDate',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+            )
+            .where(
+              'uploadDate',
+              isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+            )
+            .get();
 
     return querySnapshot.docs
         .map((doc) => KawanssModel.fromFirestore(doc, null))
@@ -100,39 +283,124 @@ class FirestoreService {
   }
 
   Future<DocumentReference> addKawanss(KawanssModel kawanss) {
-    return _db.collection(KAWANSS_COLLECTION).add(kawanss.toFirestore());
+    final data = kawanss.toFirestore();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data['isDeleted'] = false;
+    data['deletedAt'] = null;
+
+    return _db.collection(KAWANSS_COLLECTION).add(data);
   }
 
   Future<void> updateKawanss(KawanssModel kawanss) {
-    return _db
-        .collection(KAWANSS_COLLECTION)
-        .doc(kawanss.id)
-        .update(kawanss.toFirestore());
+    final data = kawanss.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data.remove('createdAt');
+
+    return _db.collection(KAWANSS_COLLECTION).doc(kawanss.id).update(data);
   }
 
   Future<void> deleteKawanss(String kawanssId) {
-    return _db.collection(KAWANSS_COLLECTION).doc(kawanssId).delete();
+    return _db.collection(KAWANSS_COLLECTION).doc(kawanssId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // 1. Fetch Murni Pagination (Tanpa Filter Tanggal)
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllKawanssCommentsBatch({
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('kawanssComments')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('uploadDate', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 2. Fetch dengan Filter Tanggal
+  Future<QuerySnapshot<Map<String, dynamic>>> getKawanssCommentsBatch({
+    required DateTime startDate,
+    required DateTime endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('kawanssComments')
+        .where('isDeleted', isEqualTo: false)
+        .where(
+          'uploadDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
+        .where('uploadDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+        .orderBy('uploadDate', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 3. Stream Realtime untuk Live Monitoring Komentar (Limit 50)
+  Stream<List<KawanssCommentModel>> getKawanssCommentsLiveStream({
+    int limit = 50,
+  }) {
+    return _db
+        .collection('kawanssComments')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('uploadDate', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => KawanssCommentModel.fromFirestore(doc, null))
+                  .toList(),
+        );
   }
 
   Stream<List<KawanssCommentModel>> getKawanssCommentsStream() {
     return _db
-        .collection('kawanssComments') // Nama koleksi root untuk komentar Kawan SS
+        .collection('kawanssComments')
+        .where('isDeleted', isEqualTo: false) // Update ke isDeleted
         .orderBy('uploadDate', descending: true)
-        .limit(100) // Batasi untuk performa awal
+        .limit(100)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => KawanssCommentModel.fromFirestore(doc, null))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => KawanssCommentModel.fromFirestore(doc, null))
+                  .toList(),
+        );
   }
 
   Future<void> softDeleteKawanssComment(String commentId, bool isDeleted) {
-    return _db.collection('kawanssComments').doc(commentId).update({'deleted': isDeleted});
+    // Fungsi ini menerima status isDeleted target (true/false)
+    return _db.collection('kawanssComments').doc(commentId).update({
+      'isDeleted': isDeleted, // Update ke isDeleted
+      'deletedAt': isDeleted ? FieldValue.serverTimestamp() : null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
-  
+
+  // ===========================================================================
+  // KONTRIBUTOR / REPORTS
+  // ===========================================================================
 
   Stream<List<KawanSSReportModel>> getKontributorsStream() {
     return _db
         .collection(KONTRIBUTOR_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
         .orderBy('uploadDate', descending: true)
         .snapshots()
         .map(
@@ -144,25 +412,42 @@ class FirestoreService {
   }
 
   Future<DocumentReference> addKontributor(KawanSSReportModel kontributor) {
-    return _db
-        .collection(KONTRIBUTOR_COLLECTION)
-        .add(kontributor.toFirestore());
+    final data = kontributor.toFirestore();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data['isDeleted'] = false;
+    data['deletedAt'] = null;
+
+    return _db.collection(KONTRIBUTOR_COLLECTION).add(data);
   }
 
   Future<void> updateKontributor(KawanSSReportModel kontributor) {
+    final data = kontributor.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data.remove('createdAt');
+
     return _db
         .collection(KONTRIBUTOR_COLLECTION)
         .doc(kontributor.id)
-        .update(kontributor.toFirestore());
+        .update(data);
   }
 
   Future<void> deleteKontributor(String kontributorId) {
-    return _db.collection(KONTRIBUTOR_COLLECTION).doc(kontributorId).delete();
+    return _db.collection(KONTRIBUTOR_COLLECTION).doc(kontributorId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
+
+  // ===========================================================================
+  // BERITA (NEWS)
+  // ===========================================================================
 
   Stream<List<BeritaModel>> getNewsStream() {
     return _db
         .collection(NEWS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
         .where('title', isNotEqualTo: null)
         .where('title', isNotEqualTo: '')
         .orderBy('title')
@@ -176,23 +461,85 @@ class FirestoreService {
   }
 
   Future<DocumentReference> addNews(BeritaModel news) {
-    return _db.collection(NEWS_COLLECTION).add(news.toFirestore());
+    final data = news.toFirestore();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data['isDeleted'] = false;
+    data['deletedAt'] = null;
+
+    return _db.collection(NEWS_COLLECTION).add(data);
   }
 
   Future<void> updateNews(BeritaModel news) {
-    return _db
-        .collection(NEWS_COLLECTION)
-        .doc(news.id)
-        .update(news.toFirestore());
+    final data = news.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data.remove('createdAt');
+
+    return _db.collection(NEWS_COLLECTION).doc(news.id).update(data);
   }
 
   Future<void> deleteNews(String newsId) {
-    return _db.collection(NEWS_COLLECTION).doc(newsId).delete();
+    return _db.collection(NEWS_COLLECTION).doc(newsId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ===========================================================================
+  // BANNER
+  // ===========================================================================
+
+  // 1. Fetch Murni Pagination
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllBannerBatch({
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('bannerTop')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('tanggalPosting', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 2. Fetch dengan Filter Tanggal
+  Future<QuerySnapshot<Map<String, dynamic>>> getBannerBatch({
+    required DateTime startDate,
+    required DateTime endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('bannerTop')
+        .where('isDeleted', isEqualTo: false)
+        .where(
+          'tanggalPosting',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
+        .where(
+          'tanggalPosting',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        )
+        .orderBy('tanggalPosting', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
   }
 
   Stream<List<BannerTopModel>> getBannersStream() {
     return _db
         .collection('bannerTop')
+        .where('isDeleted', isEqualTo: false)
         .orderBy('tanggalPosting', descending: true)
         .snapshots()
         .map(
@@ -203,31 +550,47 @@ class FirestoreService {
         );
   }
 
-  Future<DocumentReference> addBanner(BannerTopModel banner) {
-    return _db.collection('bannerTop').add(banner.toFirestore());
+  Future<String> addBannerWithIdReturn(BannerTopModel banner) async {
+    final data = banner.toFirestore();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data['isDeleted'] = false;
+    data['deletedAt'] = null;
+
+    DocumentReference docRef = await _db.collection('bannerTop').add(data);
+    await docRef.update({'id': docRef.id});
+    return docRef.id;
   }
 
   Future<void> updateBanner(BannerTopModel banner) {
-    return _db
-        .collection('bannerTop')
-        .doc(banner.id)
-        .update(banner.toFirestore());
+    final data = banner.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data.remove('createdAt');
+
+    return _db.collection('bannerTop').doc(banner.id).update(data);
   }
 
   Future<void> deleteBanner(String bannerId) {
-    return _db.collection('bannerTop').doc(bannerId).delete();
-  } 
+    return _db.collection('bannerTop').doc(bannerId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
-  // Mengambil data dari koleksi tertentu
+  // ===========================================================================
+  // KATEGORI
+  // ===========================================================================
+
   Stream<List<KategoriModel>> getKategoriStream(String collectionName) {
     return _db
         .collection(collectionName)
+        .where('isDeleted', isEqualTo: false)
         .orderBy('namaKategori')
         .snapshots()
         .map(
           (snapshot) =>
               snapshot.docs
-                  // Teruskan collectionName ke fromFirestore
                   .map(
                     (doc) => KategoriModel.fromFirestore(doc, collectionName),
                   )
@@ -235,44 +598,109 @@ class FirestoreService {
         );
   }
 
-  // Menambah data ke koleksi tertentu
   Future<void> addKategori(String collectionName, KategoriModel kategori) {
-    return _db.collection(collectionName).add(kategori.toFirestore());
+    final data = kategori.toFirestore();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data['isDeleted'] = false;
+    data['deletedAt'] = null;
+
+    return _db.collection(collectionName).add(data);
   }
 
-  // Menghapus data dari koleksi tertentu
   Future<void> deleteKategori(String collectionName, String kategoriId) {
-    return _db.collection(collectionName).doc(kategoriId).delete();
+    return _db.collection(collectionName).doc(kategoriId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
-  // --- Metode untuk Koleksi Infoss --- (BARU)
+  // ===========================================================================
+  // INFO SS
+  // ===========================================================================
 
-  // --- FUNGSI BARU: Fetch Batch dengan Pagination ---
-  Future<QuerySnapshot<Map<String, dynamic>>> getInfossBatch({
-    required DateTime startDate,
-    required DateTime endDate,
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllInfossBatch({
     required int limit,
     DocumentSnapshot? startAfterDoc,
   }) {
-    Query query = _db.collection(INFOSS_COLLECTION)
-        .where('uploadDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('uploadDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-        .orderBy('uploadDate', descending: true);
+    Query query = _db
+        .collection(INFOSS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('uploadDate', descending: true); // Murni urutan waktu
 
     if (startAfterDoc != null) {
       query = query.startAfterDocument(startAfterDoc);
     }
 
-    return query.limit(limit).get() as Future<QuerySnapshot<Map<String, dynamic>>>;
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> getInfossBatch({
+    DateTime? startDate,
+    DateTime? endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    // Mulai query dasar (Hanya filter isDeleted dan Order)
+    Query query = _db
+        .collection(INFOSS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('uploadDate', descending: true);
+
+    // HANYA terapkan filter tanggal jika parameternya tidak null
+    if (startDate != null && endDate != null) {
+      query = query
+          .where(
+            'uploadDate',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
+          .where(
+            'uploadDate',
+            isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+          );
+    }
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> getInfossBatchByCategory({
+    required String category,
+    required DateTime startDate,
+    required DateTime endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) async {
+    Query<Map<String, dynamic>> query = _db
+        .collection('infoss')
+        .where('isDeleted', isEqualTo: false) // Filter isDeleted
+        .where('kategori', isEqualTo: category)
+        .where(
+          'uploadDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
+        .where('uploadDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+        .orderBy('uploadDate', descending: true)
+        .limit(limit);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return await query.get();
   }
 
   Stream<List<InfossModel>> getInfossStream() {
     return _db
         .collection(INFOSS_COLLECTION)
-        .orderBy(
-          'uploadDate',
-          descending: true,
-        ) // Urutkan berdasarkan tanggal terbaru
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('uploadDate', descending: true)
         .snapshots()
         .map(
           (snapshot) =>
@@ -282,29 +710,41 @@ class FirestoreService {
         );
   }
 
-  Future<List<InfossModel>> getInfossInDateRange(DateTime startDate, DateTime endDate) async {
-    // Query Server-Side yang efisien dan hemat biaya
-    final querySnapshot = await _db
-        .collection(INFOSS_COLLECTION)
-        .where('uploadDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('uploadDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-        .get();
+  Future<List<InfossModel>> getInfossInDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final querySnapshot =
+        await _db
+            .collection(INFOSS_COLLECTION)
+            .where('isDeleted', isEqualTo: false)
+            .where(
+              'uploadDate',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+            )
+            .where(
+              'uploadDate',
+              isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+            )
+            .get();
 
     return querySnapshot.docs
         .map((doc) => InfossModel.fromFirestore(doc, null))
         .toList();
   }
 
-  Future<void> addInfoss(InfossModel infoss) async {
-    // Langkah 1: Buat dokumen baru dengan .add() untuk mendapatkan ID unik.
-    // Kita kirim data tanpa field 'id' terlebih dahulu.
+  Future<String> addInfossWithIdReturn(InfossModel infoss) async {
+    final data = infoss.toFirestore();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data['isDeleted'] = false;
+    data['deletedAt'] = null;
+
     DocumentReference docRef = await _db
         .collection(INFOSS_COLLECTION)
-        .add(infoss.toFirestore());
-
-    // Langkah 2: Update dokumen yang baru saja dibuat dengan ID-nya sendiri.
-    // Kita gunakan model asli yang sudah punya 'id' kosong, lalu kita update.
+        .add(data);
     await docRef.update({'id': docRef.id});
+    return docRef.id; // Kembalikan ID
   }
 
   Future<String> uploadImageToStorage(
@@ -313,21 +753,11 @@ class FirestoreService {
     String fileName,
   ) async {
     try {
-      // Buat referensi ke lokasi di Firebase Storage
       Reference ref = _storage.ref().child(childName).child(fileName);
-
-      // Tentukan metadata untuk file (penting untuk web agar bisa ditampilkan)
       SettableMetadata metadata = SettableMetadata(contentType: 'image/jpeg');
-
-      // Upload file
       UploadTask uploadTask = ref.putData(file, metadata);
-
-      // Tunggu hingga upload selesai
       TaskSnapshot snapshot = await uploadTask;
-
-      // Dapatkan URL download
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl;
+      return await snapshot.ref.getDownloadURL();
     } on FirebaseException catch (e) {
       print("Error uploading image: $e");
       throw Exception("Gagal meng-upload gambar.");
@@ -335,39 +765,112 @@ class FirestoreService {
   }
 
   Future<void> updateInfoss(InfossModel infoss) {
-    return _db
-        .collection(INFOSS_COLLECTION)
-        .doc(infoss.id)
-        .update(infoss.toFirestore());
+    final data = infoss.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data.remove('createdAt');
+
+    return _db.collection(INFOSS_COLLECTION).doc(infoss.id).update(data);
   }
 
   Future<void> deleteInfoss(String infossId) {
-    return _db.collection(INFOSS_COLLECTION).doc(infossId).delete();
+    return _db.collection(INFOSS_COLLECTION).doc(infossId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
+  // ===========================================================================
+  // INFO SS COMMENTS
+  // ===========================================================================
 
-  // Mengambil SEMUA komentar Info SS untuk halaman admin
+  Stream<List<InfossCommentModel>> getInfossCommentsLiveStream({
+    int limit = 50,
+  }) {
+    return _db
+        .collection('infossComments')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('uploadDate', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => InfossCommentModel.fromFirestore(doc, null))
+                  .toList(),
+        );
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllInfossCommentsBatch({
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('infossComments')
+        .where('isDeleted', isEqualTo: false) // Sesuai standarisasi
+        .orderBy('uploadDate', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 2. Fetch dengan Filter Tanggal
+  Future<QuerySnapshot<Map<String, dynamic>>> getInfossCommentsBatch({
+    required DateTime startDate,
+    required DateTime endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('infossComments')
+        .where('isDeleted', isEqualTo: false)
+        .where(
+          'uploadDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
+        .where('uploadDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+        .orderBy('uploadDate', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
   Stream<List<InfossCommentModel>> getInfossCommentsStream() {
     return _db
-        .collection('infossComments') // Koleksi root
+        .collection('infossComments')
+        .where('isDeleted', isEqualTo: false) // Standardisasi ke isDeleted
         .orderBy('uploadDate', descending: true)
-        .limit(100) // Batasi untuk performa
+        .limit(100)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => InfossCommentModel.fromFirestore(doc, null))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => InfossCommentModel.fromFirestore(doc, null))
+                  .toList(),
+        );
   }
 
-  // Soft delete komentar Info SS
   Future<void> softDeleteInfossComment(String commentId, bool isDeleted) {
-    return _db.collection('infossComments').doc(commentId).update({'deleted': isDeleted});
+    return _db.collection('infossComments').doc(commentId).update({
+      'isDeleted': isDeleted, // Standardisasi ke isDeleted
+      'deletedAt': isDeleted ? FieldValue.serverTimestamp() : null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Stream<List<InfossCommentModel>> getCommentsStreamForInfoss(String infossId) {
-    // Query ke koleksi root 'infossComments' dan filter berdasarkan infossId
     return _db
-        .collection('infossComments') // <-- Ubah ke koleksi root
-        .where('infossUid', isEqualTo: infossId) // <-- Tambahkan filter ini
+        .collection('infossComments')
+        .where('isDeleted', isEqualTo: false)
+        .where('infossUid', isEqualTo: infossId)
         .orderBy('uploadDate', descending: false)
         .snapshots()
         .map(
@@ -378,28 +881,52 @@ class FirestoreService {
         );
   }
 
-  Stream<List<InfossReplyModel>> getRepliesStreamForComment(String infossId, String commentId) {
+  Stream<List<InfossReplyModel>> getRepliesStreamForComment(
+    String infossId,
+    String commentId,
+  ) {
+    // Note: Replies adalah subcollection.
+    // Jika replies juga perlu soft delete, pastikan model dan migrasi support.
+    // Asumsi: Subcollection 'Replies' mengikuti standard jika dimigrasi.
+    // Jika belum dimigrasi, filter ini mungkin perlu hati-hati.
+    // Tapi untuk amannya kita pasang filter isDeleted.
     return _db
-        .collection('infossComments') // Koleksi komentar root
-        .doc(commentId)               // Dokumen komentar spesifik
-        .collection('Replies')        // Sub-koleksi balasan
+        .collection('infossComments')
+        .doc(commentId)
+        .collection('Replies')
+        .where('isDeleted', isEqualTo: false)
         .orderBy('uploadDate', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => InfossReplyModel.fromFirestore(doc, null))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => InfossReplyModel.fromFirestore(doc, null))
+                  .toList(),
+        );
   }
 
   Future<void> updateInfossComment(InfossCommentModel comment) {
+    final data = comment.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data.remove('createdAt');
+
     return _db
         .collection(INFOSS_COMMENTS_COLLECTION)
         .doc(comment.id)
-        .update(comment.toFirestore());
+        .update(data);
   }
 
   Future<void> deleteInfossComment(String commentId) {
-    return _db.collection(INFOSS_COMMENTS_COLLECTION).doc(commentId).delete();
+    return _db.collection(INFOSS_COMMENTS_COLLECTION).doc(commentId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
+
+  // ===========================================================================
+  // SETTINGS
+  // ===========================================================================
 
   Future<SettingsModel?> getSettings() async {
     final docRef = _db.collection('settings').doc('appConfig');
@@ -412,15 +939,235 @@ class FirestoreService {
   }
 
   Future<void> updateSettings(SettingsModel settings) {
+    final data = settings.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+
     return _db
         .collection('settings')
         .doc('appConfig')
-        .set(settings.toFirestore());
+        .set(data, SetOptions(merge: true));
   }
+
+  // ===========================================================================
+  // TEMA SIARAN
+  // ===========================================================================
+
+  // 1. Fetch Murni Pagination (Tanpa Filter Tanggal)
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllTemaSiaranBatch({
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('temaSiaran')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('tanggalPosting', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 2. Fetch dengan Filter Tanggal
+  Future<QuerySnapshot<Map<String, dynamic>>> getTemaSiaranBatch({
+    required DateTime startDate,
+    required DateTime endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('temaSiaran')
+        .where('isDeleted', isEqualTo: false)
+        .where(
+          'tanggalPosting',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
+        .where(
+          'tanggalPosting',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        )
+        .orderBy('tanggalPosting', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  Stream<List<TemaSiaranModel>> getTemaSiaranStream() {
+    return _db
+        .collection('temaSiaran')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('tanggalPosting', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => TemaSiaranModel.fromFirestore(doc, null))
+                  .toList(),
+        );
+  }
+
+  Future<String> addTemaSiaranWithIdReturn(TemaSiaranModel tema) async {
+    final data = tema.toFirestore();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data['isDeleted'] = false;
+    data['deletedAt'] = null;
+
+    DocumentReference docRef = await _db.collection('temaSiaran').add(data);
+    await docRef.update({'id': docRef.id});
+    return docRef.id;
+  }
+
+  Future<void> updateTemaSiaran(TemaSiaranModel tema) {
+    final data = tema.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data.remove('createdAt');
+
+    return _db.collection('temaSiaran').doc(tema.id).update(data);
+  }
+
+  Future<void> deleteTemaSiaran(String temaId) {
+    return _db.collection('temaSiaran').doc(temaId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> setTemaSiaranAsDefault(String newDefaultId) async {
+    final querySnapshot =
+        await _db
+            .collection('temaSiaran')
+            .where('isDeleted', isEqualTo: false)
+            .where('isDefault', isEqualTo: true)
+            .get();
+
+    WriteBatch batch = _db.batch();
+
+    for (final doc in querySnapshot.docs) {
+      if (doc.id != newDefaultId) {
+        batch.update(doc.reference, {
+          'isDefault': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    final newDefaultRef = _db.collection('temaSiaran').doc(newDefaultId);
+    batch.update(newDefaultRef, {
+      'isDefault': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  // ===========================================================================
+  // POPUP
+  // ===========================================================================
+
+  // 1. Fetch Murni Pagination
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllPopUpBatch({
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('popups')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('tanggalPosting', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  // 2. Fetch dengan Filter Tanggal
+  Future<QuerySnapshot<Map<String, dynamic>>> getPopUpBatch({
+    required DateTime startDate,
+    required DateTime endDate,
+    required int limit,
+    DocumentSnapshot? startAfterDoc,
+  }) {
+    Query query = _db
+        .collection('popups')
+        .where('isDeleted', isEqualTo: false)
+        .where(
+          'tanggalPosting',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
+        .where(
+          'tanggalPosting',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        )
+        .orderBy('tanggalPosting', descending: true);
+
+    if (startAfterDoc != null) {
+      query = query.startAfterDocument(startAfterDoc);
+    }
+
+    return query.limit(limit).get()
+        as Future<QuerySnapshot<Map<String, dynamic>>>;
+  }
+
+  Stream<List<PopUpModel>> getPopUpsStream() {
+    return _db
+        .collection('popups')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('tanggalPosting', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => PopUpModel.fromFirestore(doc, null))
+                  .toList(),
+        );
+  }
+
+  Future<String> addPopUpWithIdReturn(PopUpModel popUp) async {
+    final data = popUp.toFirestore();
+    data['createdAt'] = FieldValue.serverTimestamp();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data['isDeleted'] = false;
+    data['deletedAt'] = null;
+
+    DocumentReference docRef = await _db.collection('popups').add(data);
+    await docRef.update({'id': docRef.id});
+    return docRef.id;
+  }
+
+  Future<void> updatePopUp(PopUpModel popUp) {
+    final data = popUp.toFirestore();
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    data.remove('createdAt');
+
+    return _db.collection('popups').doc(popUp.id).update(data);
+  }
+
+  Future<void> deletePopUp(String popUpId) {
+    return _db.collection('popups').doc(popUpId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ===========================================================================
+  // ANALITIK & STATISTIK
+  // ===========================================================================
 
   Stream<List<KawanssModel>> getPostsByUser(String userId) {
     return _db
         .collection(KAWANSS_COLLECTION)
+        .where('isDeleted', isEqualTo: false)
         .where('userId', isEqualTo: userId)
         .orderBy('uploadDate', descending: true)
         .snapshots()
@@ -433,10 +1180,7 @@ class FirestoreService {
   }
 
   Stream<List<CallHistoryModel>> getCallHistoryByUser(String userId) {
-    // Firestore tidak bisa query 'where array contains' dengan mudah untuk ini.
-    // Di aplikasi nyata, Anda mungkin akan query koleksi 'calls'
-    // where('userId', isEqualTo: userId)
-    return Stream.value([]); // Kembalikan stream kosong untuk sekarang
+    return Stream.value([]);
   }
 
   Future<List<UserModel>> getUsersInDateRange(
@@ -446,6 +1190,7 @@ class FirestoreService {
     final querySnapshot =
         await _db
             .collection(USERS_COLLECTION)
+            .where('isDeleted', isEqualTo: false)
             .where(
               'joinDate',
               isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
@@ -463,10 +1208,21 @@ class FirestoreService {
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
     final sixtyDaysAgo = now.subtract(const Duration(days: 60));
 
+    // Hitung total user yang tidak dihapus
     final totalUsers =
-        (await _db.collection(USERS_COLLECTION).count().get()).count ?? 0;
+        (await _db
+                .collection(USERS_COLLECTION)
+                .where('isDeleted', isEqualTo: false)
+                .count()
+                .get())
+            .count ??
+        0;
 
-    final allUsersSnapshot = await _db.collection(USERS_COLLECTION).get();
+    final allUsersSnapshot =
+        await _db
+            .collection(USERS_COLLECTION)
+            .where('isDeleted', isEqualTo: false)
+            .get();
 
     int newUsersCount = 0;
     int previousNewUsersCount = 0;
@@ -492,11 +1248,29 @@ class FirestoreService {
     }
 
     final newsCount =
-        (await _db.collection(NEWS_COLLECTION).count().get()).count ?? 0;
+        (await _db
+                .collection(NEWS_COLLECTION)
+                .where('isDeleted', isEqualTo: false)
+                .count()
+                .get())
+            .count ??
+        0;
     final kawanssCount =
-        (await _db.collection(KAWANSS_COLLECTION).count().get()).count ?? 0;
+        (await _db
+                .collection(KAWANSS_COLLECTION)
+                .where('isDeleted', isEqualTo: false)
+                .count()
+                .get())
+            .count ??
+        0;
     final kontributorCount =
-        (await _db.collection(KONTRIBUTOR_COLLECTION).count().get()).count ?? 0;
+        (await _db
+                .collection(KONTRIBUTOR_COLLECTION)
+                .where('isDeleted', isEqualTo: false)
+                .count()
+                .get())
+            .count ??
+        0;
     final totalPosts = newsCount + kawanssCount + kontributorCount;
 
     int newPosts = 0;
@@ -506,7 +1280,11 @@ class FirestoreService {
       {'name': KONTRIBUTOR_COLLECTION, 'field': 'uploadDate'},
     ];
     for (var collectionInfo in collections) {
-      final snapshot = await _db.collection(collectionInfo['name']!).get();
+      final snapshot =
+          await _db
+              .collection(collectionInfo['name']!)
+              .where('isDeleted', isEqualTo: false)
+              .get();
       for (var doc in snapshot.docs) {
         final tsField = doc.data()[collectionInfo['field']!];
         if (tsField is Timestamp) {
@@ -529,6 +1307,7 @@ class FirestoreService {
     final snapshot =
         await _db
             .collection(INFOSS_COLLECTION)
+            .where('isDeleted', isEqualTo: false)
             .orderBy('jumlahView', descending: true)
             .limit(10)
             .get();
@@ -545,6 +1324,9 @@ class FirestoreService {
     final snapshot =
         await _db
             .collection('view_analytics')
+            // Analytics biasanya log, mungkin tidak perlu isDeleted,
+            // tapi jika ada fitur hapus log, tambahkan:
+            // .where('isDeleted', isEqualTo: false)
             .where('timestamp', isGreaterThanOrEqualTo: startTime)
             .where('timestamp', isLessThanOrEqualTo: endTime)
             .get();
@@ -580,6 +1362,7 @@ class FirestoreService {
       final snapshot =
           await _db
               .collection(collectionInfo['name']!)
+              .where('isDeleted', isEqualTo: false)
               .where(
                 collectionInfo['field']!,
                 isGreaterThanOrEqualTo: startTime,
@@ -602,7 +1385,11 @@ class FirestoreService {
     DateTime endTime,
   ) async {
     final List<DateTime> timestamps = [];
-    final snapshot = await _db.collection(USERS_COLLECTION).get();
+    final snapshot =
+        await _db
+            .collection(USERS_COLLECTION)
+            .where('isDeleted', isEqualTo: false)
+            .get();
 
     for (var doc in snapshot.docs) {
       final data = doc.data();
@@ -633,82 +1420,5 @@ class FirestoreService {
       }
     }
     return timestamps;
-  }
-
-  Stream<List<TemaSiaranModel>> getTemaSiaranStream() {
-    return _db
-        .collection('temaSiaran') // Nama koleksi di Firestore
-        .orderBy('tanggalPosting', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs
-                  .map((doc) => TemaSiaranModel.fromFirestore(doc, null))
-                  .toList(),
-        );
-  }
-
-  Future<DocumentReference> addTemaSiaran(TemaSiaranModel tema) {
-    return _db.collection('temaSiaran').add(tema.toFirestore());
-  }
-
-  Future<void> updateTemaSiaran(TemaSiaranModel tema) {
-    return _db.collection('temaSiaran').doc(tema.id).update(tema.toFirestore());
-  }
-
-  Future<void> deleteTemaSiaran(String temaId) {
-    return _db.collection('temaSiaran').doc(temaId).delete();
-  }
-
-  Future<void> setTemaSiaranAsDefault(String newDefaultId) async {
-    // Dapatkan semua tema yang saat ini menjadi default (seharusnya hanya ada satu)
-    final querySnapshot =
-        await _db
-            .collection('temaSiaran')
-            .where('isDefault', isEqualTo: true)
-            .get();
-
-    // Gunakan batched write untuk efisiensi dan konsistensi data
-    WriteBatch batch = _db.batch();
-
-    // 1. Nonaktifkan semua default yang lama
-    for (final doc in querySnapshot.docs) {
-      if (doc.id != newDefaultId) {
-        batch.update(doc.reference, {'isDefault': false});
-      }
-    }
-
-    // 2. Aktifkan default yang baru
-    final newDefaultRef = _db.collection('temaSiaran').doc(newDefaultId);
-    batch.update(newDefaultRef, {'isDefault': true});
-
-    // Jalankan semua operasi dalam satu batch
-    await batch.commit();
-  }
-
-  // --- Metode untuk Koleksi Pop Up --- (BARU)
-  Stream<List<PopUpModel>> getPopUpsStream() {
-    return _db
-        .collection('popups') // Nama koleksi di Firestore
-        .orderBy('tanggalPosting', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs
-                  .map((doc) => PopUpModel.fromFirestore(doc, null))
-                  .toList(),
-        );
-  }
-
-  Future<DocumentReference> addPopUp(PopUpModel popUp) {
-    return _db.collection('popups').add(popUp.toFirestore());
-  }
-
-  Future<void> updatePopUp(PopUpModel popUp) {
-    return _db.collection('popups').doc(popUp.id).update(popUp.toFirestore());
-  }
-
-  Future<void> deletePopUp(String popUpId) {
-    return _db.collection('popups').doc(popUpId).delete();
   }
 }

@@ -152,9 +152,14 @@ class _SidebarState extends State<Sidebar> {
             page: DashboardPage.settings,
           ),
           SidebarMenuItem(
-            title: '[BELUM] User Admin Management',
+            title: '[BELUM] User Account Management',
             icon: Icons.radio_button_unchecked_outlined,
-            page: DashboardPage.userAdminManagement,
+            page: DashboardPage.usersAccountManagement,
+          ),
+          SidebarMenuItem(
+            title: '[BELUM] Admin Management',
+            icon: Icons.radio_button_unchecked_outlined,
+            page: DashboardPage.adminManagement,
           ),
         ],
       ),

@@ -5,7 +5,7 @@ class UserModel {
   final String username;
   final String role;
   final Map<String, String> hakAkses;
-  final bool status; // <-- Tipe data sudah benar (bool)
+  final bool status;
   final DateTime joinDate;
   final String email;
   final String nama;
@@ -25,7 +25,7 @@ class UserModel {
     required this.username,
     required this.role,
     required this.hakAkses,
-    required this.status, // <-- Menerima bool
+    required this.status,
     required this.joinDate,
     required this.email,
     required this.nama,
@@ -41,45 +41,20 @@ class UserModel {
     this.aktivitas,
   });
 
-  factory UserModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> snapshot,
-    SnapshotOptions? options,
-  ) {
+  factory UserModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot, SnapshotOptions? options) {
     final data = snapshot.data();
-
     Map<String, String> parsedHakAkses = {};
     if (data?['hakAkses'] is Map) {
-      // Pastikan semua value adalah String
-      (data?['hakAkses'] as Map).forEach((key, value) {
-        if (value is String) {
-          parsedHakAkses[key] = value;
-        }
-      });
+      (data?['hakAkses'] as Map).forEach((key, value) { if (value is String) parsedHakAkses[key] = value; });
     }
 
-    // --- LOGIKA KONVERSI STATUS YANG BENAR ---
-    bool parsedStatus;
-    // Prioritas 1: Cek jika ada field 'status' bertipe bool
-    if (data?['status'] is bool) {
-      parsedStatus = data?['status'];
-    }
-    // Prioritas 2: Cek jika ada field 'status' bertipe String "Aktif"
-    else if (data?['status'] is String) {
-      parsedStatus = data?['status'] == 'Aktif';
-    }
-    // Fallback: Jika tidak ada, anggap tidak aktif
-    else {
-      parsedStatus = false;
-    }
-    // ------------------------------------
+    bool parsedStatus = false;
+    if (data?['status'] is bool) parsedStatus = data?['status'];
+    else if (data?['status'] is String) parsedStatus = data?['status'] == 'Aktif';
 
     List<Map<String, dynamic>>? parsedAktivitas;
     if (data?['aktivitas'] is List) {
-      parsedAktivitas = List<Map<String, dynamic>>.from(
-        (data?['aktivitas'] as List)
-            .where((item) => item is Map)
-            .cast<Map<String, dynamic>>(),
-      );
+      parsedAktivitas = List<Map<String, dynamic>>.from((data?['aktivitas'] as List).where((item) => item is Map).cast<Map<String, dynamic>>());
     }
 
     DateTime parseDate(dynamic value) {
@@ -93,8 +68,8 @@ class UserModel {
       nama: data?['nama'] ?? '',
       username: data?['username'] ?? data?['nama'] ?? '',
       role: data?['role'] ?? 'User',
-       hakAkses: parsedHakAkses,
-      status: parsedStatus, // <-- Gunakan boolean yang sudah di-parse
+      hakAkses: parsedHakAkses,
+      status: parsedStatus,
       joinDate: parseDate(data?['joinDate'] ?? data?['waktu']),
       jumlahComment: data?['jumlahComment'] ?? 0,
       jumlahKontributor: data?['jumlahKontributor'] ?? 0,
@@ -115,7 +90,7 @@ class UserModel {
       'username': username,
       'role': role,
       'hakAkses': hakAkses,
-      'status': status, // <-- Simpan sebagai boolean
+      'status': status,
       'joinDate': Timestamp.fromDate(joinDate),
       'email': email,
       'nama': nama,
@@ -130,5 +105,48 @@ class UserModel {
       if (tanggalLahir != null) 'tanggal_lahir': tanggalLahir,
       if (aktivitas != null) 'aktivitas': aktivitas,
     };
+  }
+
+  // --- COPY WITH (Untuk Update Lokal) ---
+  UserModel copyWith({
+    String? id,
+    String? username,
+    String? role,
+    Map<String, String>? hakAkses,
+    bool? status,
+    DateTime? joinDate,
+    String? email,
+    String? nama,
+    int? jumlahComment,
+    int? jumlahKontributor,
+    int? jumlahLike,
+    int? jumlahShare,
+    String? alamat,
+    String? jenisKelamin,
+    String? nomorHp,
+    String? photoURL,
+    String? tanggalLahir,
+    List<Map<String, dynamic>>? aktivitas,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      role: role ?? this.role,
+      hakAkses: hakAkses ?? this.hakAkses,
+      status: status ?? this.status,
+      joinDate: joinDate ?? this.joinDate,
+      email: email ?? this.email,
+      nama: nama ?? this.nama,
+      jumlahComment: jumlahComment ?? this.jumlahComment,
+      jumlahKontributor: jumlahKontributor ?? this.jumlahKontributor,
+      jumlahLike: jumlahLike ?? this.jumlahLike,
+      jumlahShare: jumlahShare ?? this.jumlahShare,
+      alamat: alamat ?? this.alamat,
+      jenisKelamin: jenisKelamin ?? this.jenisKelamin,
+      nomorHp: nomorHp ?? this.nomorHp,
+      photoURL: photoURL ?? this.photoURL,
+      tanggalLahir: tanggalLahir ?? this.tanggalLahir,
+      aktivitas: aktivitas ?? this.aktivitas,
+    );
   }
 }

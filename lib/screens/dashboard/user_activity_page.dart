@@ -143,6 +143,8 @@ class _ProfileSidebar extends StatelessWidget {
               Row(
                 children: [
                   Expanded(child: _buildStatBox(context, 'Comments', profile.jumlahComment.toString(), Icons.comment_outlined)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildStatBox(context, 'Shares', profile.jumlahShare.toString(), Icons.share_outlined)),
                 ],
               ),
             ],

@@ -1,5 +1,3 @@
-// lib/models/banner_model.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BannerTopModel {
@@ -12,7 +10,7 @@ class BannerTopModel {
   final int hits;
   final DateTime tanggalPosting;
   final String dipostingOleh;
-  final String position; // <-- FIELD BARU (e.g., "Top" atau "Normal")
+  final String position;
 
   BannerTopModel({
     required this.id,
@@ -24,7 +22,7 @@ class BannerTopModel {
     required this.hits,
     required this.tanggalPosting,
     required this.dipostingOleh,
-    required this.position, // <-- TAMBAHKAN DI CONSTRUCTOR
+    required this.position,
   });
 
   factory BannerTopModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot, SnapshotOptions? options) {
@@ -39,7 +37,7 @@ class BannerTopModel {
       hits: data['hits'] ?? 0,
       tanggalPosting: (data['tanggalPosting'] as Timestamp?)?.toDate() ?? DateTime.now(),
       dipostingOleh: data['dipostingOleh'] ?? '',
-      position: data['position'] ?? 'Top', // <-- AMBIL DARI FIRESTORE, default 'Top'
+      position: data['position'] ?? 'Top',
     );
   }
 
@@ -53,7 +51,34 @@ class BannerTopModel {
       'hits': hits,
       'tanggalPosting': Timestamp.fromDate(tanggalPosting),
       'dipostingOleh': dipostingOleh,
-      'position': position, // <-- SIMPAN KE FIRESTORE
+      'position': position,
     };
+  }
+
+  // --- COPY WITH (PENTING) ---
+  BannerTopModel copyWith({
+    String? id,
+    String? namaBanner,
+    DateTime? tanggalAktifMulai,
+    DateTime? tanggalAktifSelesai,
+    String? bannerImageUrl,
+    bool? status,
+    int? hits,
+    DateTime? tanggalPosting,
+    String? dipostingOleh,
+    String? position,
+  }) {
+    return BannerTopModel(
+      id: id ?? this.id,
+      namaBanner: namaBanner ?? this.namaBanner,
+      tanggalAktifMulai: tanggalAktifMulai ?? this.tanggalAktifMulai,
+      tanggalAktifSelesai: tanggalAktifSelesai ?? this.tanggalAktifSelesai,
+      bannerImageUrl: bannerImageUrl ?? this.bannerImageUrl,
+      status: status ?? this.status,
+      hits: hits ?? this.hits,
+      tanggalPosting: tanggalPosting ?? this.tanggalPosting,
+      dipostingOleh: dipostingOleh ?? this.dipostingOleh,
+      position: position ?? this.position,
+    );
   }
 }

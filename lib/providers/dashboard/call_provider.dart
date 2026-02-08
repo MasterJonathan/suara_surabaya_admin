@@ -35,8 +35,41 @@ class CallProvider extends ChangeNotifier {
   void _listenToQueuedCalls() {
     _queuedCallsSubscription = _callService.getQueuedCallsStream().listen((snapshot) {
       _queuedCalls = snapshot.docs;
+      
+      // --- LOGIKA BARU: Cek & Bersihkan Panggilan Hantu ---
+      _cleanupGhostCalls();
+      // ----------------------------------------------------
+
       if (hasListeners) notifyListeners();
     });
+  }
+
+  void _cleanupGhostCalls() {
+    final now = DateTime.now();
+    
+    // Loop semua panggilan yang sedang antri
+    for (var doc in _queuedCalls) {
+      try {
+        final data = doc.data() as Map<String, dynamic>;
+        final createdAtRaw = data['createdAt'];
+
+        if (createdAtRaw != null && createdAtRaw is Timestamp) {
+          final createdAt = createdAtRaw.toDate();
+          final difference = now.difference(createdAt);
+
+          // Batas Waktu: 2 Menit (120 Detik)
+          if (difference.inSeconds > 120) {
+            print("🧹 Auto-Rejecting Ghost Call: ${doc.id} (Age: ${difference.inSeconds}s)");
+            
+            // Set status ke 'timeout' agar terbedakan dengan reject manual
+            // Ini akan memicu stream update, dan panggilan akan hilang dari list UI
+            _callService.updateCallDocument(doc.id, {'status': 'timeout'});
+          }
+        }
+      } catch (e) {
+        print("Error checking call timeout: $e");
+      }
+    }
   }
 
   void _listenToActiveCalls() {

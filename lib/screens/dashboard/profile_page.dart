@@ -135,20 +135,20 @@ class _ProfilePageState extends State<ProfilePage> {
           aktivitas: authProvider.user!.aktivitas,
         );
 
-        bool success = await userProvider.updateUser(updatedUser);
+        // bool success = await userProvider.updateUser(updatedUser);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(success ? 'Profil berhasil diperbarui!' : 'Gagal memperbarui profil.'),
-              backgroundColor: success ? AppColors.success : AppColors.error,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          if (success) {
-            setState(() => _isEditingInfo = false);
-          }
-        }
+        // if (mounted) {
+        //   ScaffoldMessenger.of(context).showSnackBar(
+        //     SnackBar(
+        //       content: Text(success ? 'Profil berhasil diperbarui!' : 'Gagal memperbarui profil.'),
+        //       backgroundColor: success ? AppColors.success : AppColors.error,
+        //       behavior: SnackBarBehavior.floating,
+        //     ),
+        //   );
+        //   if (success) {
+        //     setState(() => _isEditingInfo = false);
+        //   }
+        // }
       }
     }
   }

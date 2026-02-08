@@ -5,20 +5,15 @@ import 'package:flutter/material.dart';
 enum DashboardPage {
   
   overview,
-  users,         
-  products,      
-  calendar,      
-  charts,        
-  forms,         
   profile,
-
   
   videoCall,
   callSimulator,
 
   changePassword,
   settings,
-  userAdminManagement,
+  usersAccountManagement,
+  adminManagement,
 
   temaSiaran,
   bannerTop,

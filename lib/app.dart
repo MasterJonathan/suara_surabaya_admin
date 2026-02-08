@@ -13,6 +13,7 @@ import 'package:suara_surabaya_admin/providers/dashboard/infoss/popup_provider.d
 import 'package:suara_surabaya_admin/providers/dashboard/infoss/tema_siaran_provider.dart';
 import 'package:suara_surabaya_admin/providers/dashboard/report/kawanss_post_report_provider.dart';
 import 'package:suara_surabaya_admin/providers/dashboard/report/kawanss_registration_report_provider.dart';
+import 'package:suara_surabaya_admin/providers/dashboard/user_management/admin_provider.dart';
 import 'package:suara_surabaya_admin/providers/kategori_provider.dart';
 import 'package:suara_surabaya_admin/providers/dashboard/kawanss/kawanss_post_provider.dart';
 import 'package:suara_surabaya_admin/providers/dashboard/kawanss/kawanss_provider.dart';
@@ -56,6 +57,12 @@ class AdminDashboardApp extends StatelessWidget {
         ChangeNotifierProvider<UserProvider>(
           create:
               (context) => UserProvider(
+                firestoreService: context.read<FirestoreService>(),
+              ),
+        ),
+        ChangeNotifierProvider<AdminProvider>(
+          create:
+              (context) => AdminProvider(
                 firestoreService: context.read<FirestoreService>(),
               ),
         ),

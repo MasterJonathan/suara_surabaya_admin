@@ -30,10 +30,9 @@ class _AdminCallPageState extends State<AdminCallPage> {
 
     final String apiUrl = dotenv.env['PHONE_API'] ?? '';
     
-    // --- PERBAIKAN: Ambil secret key dari .env ---
     final String secretKey = dotenv.env['SS_LOGCALL_SECRET_KEY'] ?? '';
     if (secretKey.isEmpty) {
-      print("Error: ABSENSI_SECRET_KEY tidak ditemukan di file .env");
+      print("Error: SS_LOGCALL_SECRET_KEY tidak ditemukan di file .env");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Konfigurasi error: Secret key tidak ditemukan.')),
@@ -41,7 +40,6 @@ class _AdminCallPageState extends State<AdminCallPage> {
       }
       return;
     }
-    // ------------------------------------------------
 
     try {
       final response = await http.post(
@@ -87,37 +85,86 @@ class _AdminCallPageState extends State<AdminCallPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final callProvider = context.watch<CallProvider>();
 
     return CustomCard(
-      child: Column(
+      // Ubah Column menjadi Row agar bersebelahan
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text('Panggilan Masuk', style: Theme.of(context).textTheme.headlineSmall),
-          ),
-          const Divider(),
-          Expanded(
-            flex: 1, 
-            child: callProvider.queuedCalls.isEmpty
-                ? const Center(child: Text('Tidak ada panggilan dalam antrian.'))
-                : _buildQueuedCallsList(context, callProvider.queuedCalls),
-          ),
-          
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-            child: Text('Panggilan Aktif', style: Theme.of(context).textTheme.headlineSmall),
-          ),
-          const Divider(),
+          // --- BAGIAN KIRI: PANGGILAN MASUK ---
           Expanded(
             flex: 1,
-            child: callProvider.activeCalls.isEmpty
-                ? const Center(child: Text('Tidak ada panggilan yang sedang aktif.'))
-                : _buildActiveCallsList(context, callProvider.activeCalls),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.call_received, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text('Panggilan Masuk', style: Theme.of(context).textTheme.headlineSmall),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: callProvider.queuedCalls.isEmpty
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.notifications_off_outlined, size: 48, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text('Tidak ada panggilan dalam antrian.', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        )
+                      : _buildQueuedCallsList(context, callProvider.queuedCalls),
+                ),
+              ],
+            ),
+          ),
+
+          // GARIS PEMBATAS VERTIKAL
+          const VerticalDivider(width: 1, thickness: 1),
+
+          // --- BAGIAN KANAN: PANGGILAN AKTIF ---
+          Expanded(
+            flex: 1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.call, color: AppColors.success),
+                      const SizedBox(width: 8),
+                      Text('Panggilan Aktif', style: Theme.of(context).textTheme.headlineSmall),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: callProvider.activeCalls.isEmpty
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.phone_paused_outlined, size: 48, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text('Tidak ada panggilan yang sedang berlangsung.', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        )
+                      : _buildActiveCallsList(context, callProvider.activeCalls),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -126,8 +173,10 @@ class _AdminCallPageState extends State<AdminCallPage> {
 
   Widget _buildQueuedCallsList(BuildContext context, List<QueryDocumentSnapshot> calls) {
     final callProvider = context.read<CallProvider>();
-    return ListView.builder(
+    return ListView.separated( // Gunakan separated agar lebih rapi
+      padding: const EdgeInsets.all(8),
       itemCount: calls.length,
+      separatorBuilder: (context, index) => const Divider(),
       itemBuilder: (context, index) {
         final callDoc = calls[index];
         final callData = callDoc.data() as Map<String, dynamic>;
@@ -144,29 +193,35 @@ class _AdminCallPageState extends State<AdminCallPage> {
             backgroundImage: photoURL.isNotEmpty ? NetworkImage(photoURL) : null,
             child: photoURL.isEmpty ? const Icon(Icons.person) : null,
           ),
-          title: Text(username),
-          subtitle: Text('Memanggil ${timeago.format(createdAt, locale: 'id')}'),
+          title: Text(username, style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Text(
+            'Menunggu ${timeago.format(createdAt, locale: 'id')}',
+            style: const TextStyle(color: AppColors.error),
+          ),
           trailing: isProcessing
-              ? const CircularProgressIndicator()
+              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ElevatedButton.icon(
                       icon: Icon(isVideoCall ? Icons.videocam : Icons.phone, size: 16),
                       label: const Text('Jawab'),
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white,
+                      ),
                       onPressed: () async {
                         setState(() => _processingCallIds.add(callId));
                         try {
+                          // PANGGIL API Belum ENABLE logicnya disini...
                           // PANGGIL API Belum ENABLE
-                          final String userId = callData['userId'];
-                          final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-                          if (userDoc.exists) {
-                            // NOT ENABLE
-                            // final String? phoneNumber = userDoc.data()?['nomorHp'];
-                            // await _checkUserRegistration(phoneNumber);
-                          }
-
+                          // final String userId = callData['userId'];
+                          // final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+                          // if (userDoc.exists) {
+                          //   // NOT ENABLE
+                          //   // final String? phoneNumber = userDoc.data()?['nomorHp'];
+                          //   // await _checkUserRegistration(phoneNumber);
+                          // }
 
                           final callDetails = await callProvider.answerAndClaimCall(callDoc);
                           if (callDetails != null && context.mounted) {
@@ -180,7 +235,7 @@ class _AdminCallPageState extends State<AdminCallPage> {
                                   originalUserId: callDetails['originalUserId'],
                                   originalCallerUid: callDetails['originalCallerUid'],
                                   isVideoCall: isVideoCall,
-                                  username: username, // <-- PERBAIKAN: Kirim nama penelpon
+                                  username: username,
                                 ),
                               ),
                             );
@@ -194,8 +249,9 @@ class _AdminCallPageState extends State<AdminCallPage> {
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Icons.call_end),
                       color: AppColors.error,
+                      tooltip: 'Tolak',
                       onPressed: () => callProvider.rejectCall(callId),
                     ),
                   ],
@@ -207,8 +263,10 @@ class _AdminCallPageState extends State<AdminCallPage> {
 
   Widget _buildActiveCallsList(BuildContext context, List<QueryDocumentSnapshot> calls) {
     final callProvider = context.read<CallProvider>();
-    return ListView.builder(
+    return ListView.separated(
+      padding: const EdgeInsets.all(8),
       itemCount: calls.length,
+      separatorBuilder: (context, index) => const Divider(),
       itemBuilder: (context, index) {
         final callDoc = calls[index];
         final callData = callDoc.data() as Map<String, dynamic>;
@@ -222,11 +280,15 @@ class _AdminCallPageState extends State<AdminCallPage> {
             backgroundImage: photoURL.isNotEmpty ? NetworkImage(photoURL) : null,
             child: photoURL.isEmpty ? const Icon(Icons.person) : null,
           ),
-          title: Text(username),
-          subtitle: const Text('Sedang dalam panggilan...'),
+          title: Text(username, style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: const Text('Sedang berlangsung...', style: TextStyle(color: AppColors.success)),
           trailing: ElevatedButton.icon(
             icon: Icon(isVideoCall ? Icons.videocam_outlined : Icons.phone_in_talk_outlined, size: 16),
             label: const Text('Gabung'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent, 
+              foregroundColor: Colors.white
+            ),
             onPressed: () {
               final callDetails = callProvider.joinExistingCall(callDoc);
               Navigator.of(context).push(
@@ -239,7 +301,7 @@ class _AdminCallPageState extends State<AdminCallPage> {
                     originalUserId: callDetails['originalUserId'],
                     originalCallerUid: callDetails['originalCallerUid'],
                     isVideoCall: isVideoCall,
-                    username: username, // <-- PERBAIKAN: Kirim nama penelpon
+                    username: username,
                   ),
                 ),
               );
