@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../../../models/report_model.dart';
 
 class ReportService {
   final Dio _dio;
@@ -7,25 +8,59 @@ class ReportService {
 
   ReportService({Dio? dio})
     : _dio = dio ?? Dio(),
-      _baseUrl = dotenv.env['BASE_URL'] ?? '';
+      _baseUrl = dotenv.env['BASE_URL'] ?? '' {
+    _dio.options.headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+  }
 
-  Future<dynamic> fetchReports() async {
-    if (_baseUrl.isEmpty) {
-      throw Exception("BASE_URL not found in .env");
-    }
-
+  Future<DashboardData> fetchMainDashboard() async {
     try {
-      final response = await _dio.get('$_baseUrl/sna/dashboard');
-
-      if (response.statusCode == 200) {
-        return response.data;
-      } else {
-        throw Exception("Failed to load reports: ${response.statusCode}");
+      final response = await _dio.get('$_baseUrl/report/dashboard');
+      if (response.statusCode == 200 && response.data['status'] == 'success') {
+        return DashboardData.fromJson(response.data['data']);
       }
-    } on DioException catch (e) {
-      throw Exception("Network Error: ${e.message}");
+      throw Exception("Gagal memuat dashboard");
     } catch (e) {
-      throw Exception("Unexpected Error: $e");
+      throw Exception("Error Dashboard: $e");
+    }
+  }
+
+  Future<InstagramProfile> fetchInstagramProfile() async {
+    try {
+      final response = await _dio.get('$_baseUrl/instagram/profile');
+      if (response.statusCode == 200 && response.data['status'] == 'success') {
+        return InstagramProfile.fromJson(response.data['data']);
+      }
+      throw Exception("Gagal memuat profile Instagram");
+    } catch (e) {
+      throw Exception("Error Instagram Profile: $e");
+    }
+  }
+
+  Future<AnalyticsData> fetchAnalytics() async {
+    try {
+      final response = await _dio.get('$_baseUrl/report/analytics');
+      if (response.statusCode == 200) {
+        return AnalyticsData.fromJson(response.data);
+      }
+      throw Exception("Gagal memuat analytics");
+    } catch (e) {
+      throw Exception("Error Analytics: $e");
+    }
+  }
+
+  // 3. Trigger Export Sheets
+  Future<String> exportToSheets() async {
+    try {
+      final response = await _dio.post('$_baseUrl/report/export/sheets');
+      if (response.statusCode == 200) {
+        return response.data['message'] ?? "Export Berhasil";
+      }
+      throw Exception("Gagal export data");
+    } catch (e) {
+      throw Exception("Error Export: $e");
     }
   }
 }

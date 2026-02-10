@@ -1,6 +1,7 @@
 abstract class ReportEvent {}
 
-class LoadReportEvent extends ReportEvent {}
+class LoadDashboardEvent extends ReportEvent {}
 
-class RefreshReportEvent extends ReportEvent {}
+class LoadAnalyticsEvent extends ReportEvent {}
 
+class TriggerExportEvent extends ReportEvent {}
