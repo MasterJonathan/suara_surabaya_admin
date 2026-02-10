@@ -23,7 +23,6 @@ import 'package:suara_surabaya_admin/providers/dashboard/user_management/user_pr
 import 'package:suara_surabaya_admin/screens/auth/login_screen.dart';
 import 'package:suara_surabaya_admin/screens/auth/register_screen.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/dashboard_layout.dart';
-import 'package:suara_surabaya_admin/screens/dashboard/report/report_provider.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/report_data/kawanss_registration_report_page.dart';
 import 'package:suara_surabaya_admin/screens/unknown_screen.dart';
 import 'package:suara_surabaya_admin/core/services/call_service.dart';
@@ -128,14 +127,6 @@ class AdminDashboardApp extends StatelessWidget {
         //         firestoreService: context.read<FirestoreService>(),
         //       ),
         // ),
-        // TAMBAHKAN PROVIDER BARU DI SINI
-        ChangeNotifierProvider<ReportProvider>(
-          create:
-              (context) => ReportProvider(
-                firestoreService: context.read<FirestoreService>(),
-              ),
-        ),
-        // TAMBAHKAN PROVIDER BARU DI SINI
         ChangeNotifierProvider<KawanSSRegistrationReportProvider>(
           create:
               (context) => KawanSSRegistrationReportProvider(
@@ -143,9 +134,10 @@ class AdminDashboardApp extends StatelessWidget {
               ),
         ),
         ChangeNotifierProvider<KawanssPostReportProvider>(
-          create: (context) => KawanssPostReportProvider(
-            firestoreService: context.read<FirestoreService>(),
-          ),
+          create:
+              (context) => KawanssPostReportProvider(
+                firestoreService: context.read<FirestoreService>(),
+              ),
         ),
         ChangeNotifierProvider<KategoriProvider>(
           create:

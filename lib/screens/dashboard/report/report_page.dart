@@ -1,44 +1,61 @@
-import 'package:suara_surabaya_admin/core/theme/app_colors.dart';
-import 'package:suara_surabaya_admin/models/dashboard/infoss/infoss_model.dart';
-import 'package:suara_surabaya_admin/screens/dashboard/report/report_provider.dart';
-import 'package:suara_surabaya_admin/widgets/common/custom_card.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
+import 'package:suara_surabaya_admin/core/theme/app_colors.dart';
+import 'package:suara_surabaya_admin/models/report_model.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/report/bloc/report_bloc.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/report/bloc/report_event.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/report/bloc/report_state.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/report/data/report_service.dart';
+import 'package:suara_surabaya_admin/widgets/common/custom_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class ReportPage extends StatefulWidget {
+class ReportPage extends StatelessWidget {
   const ReportPage({super.key});
 
   @override
-  State<ReportPage> createState() => _ReportPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create:
+          (context) =>
+              ReportBloc(reportService: ReportService())
+                ..add(LoadDashboardEvent()),
+      child: const _ReportView(),
+    );
+  }
 }
 
-class _ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
+class _ReportView extends StatefulWidget {
+  const _ReportView();
+
+  @override
+  State<_ReportView> createState() => _ReportViewState();
+}
+
+class _ReportViewState extends State<_ReportView>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  late Future<void> _initFuture;
-  DateTime? _startDate;
-  DateTime? _endDate;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
-    _initFuture = Provider.of<ReportProvider>(context, listen: false).init();
-
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
+    _fadeAnimation = CurvedAnimation(
       parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+      curve: Curves.easeOut,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
+    _animationController.forward();
   }
 
   @override
@@ -47,353 +64,958 @@ class _ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  String _toBeginningOfSentenceCase(String text) {
-    if (text.isEmpty) return '';
-    return text[0].toUpperCase() + text.substring(1).toLowerCase();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      body: FutureBuilder(
-        future: _initFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+      backgroundColor: const Color(0xFFF8F9FE),
+      body: BlocConsumer<ReportBloc, ReportState>(
+        listener: (context, state) {
+          if (state is ReportExportSuccessState) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(state.message)),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                margin: const EdgeInsets.all(16),
+              ),
+            );
+          } else if (state is ReportErrorState) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(state.message)),
+                  ],
+                ),
+                backgroundColor: const Color(0xFFEF4444),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                margin: const EdgeInsets.all(16),
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          if (state is ReportLoadingState) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text("Menginisialisasi Laporan..."),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.1),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: const CircularProgressIndicator(strokeWidth: 3),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Memuat data...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             );
           }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Text("Terjadi kesalahan saat inisialisasi: ${snapshot.error}"),
+          if (state is ReportLoadedState && state.dashboardData != null) {
+            final data = state.dashboardData!;
+
+            return FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    context.read<ReportBloc>().add(LoadDashboardEvent());
+                  },
+                  color: AppColors.primary,
+                  child: ListView(
+                    padding: const EdgeInsets.all(32),
+                    children: [
+                      _buildHeader(context),
+                      const SizedBox(height: 40),
+                      _buildStatsGrid(data),
+                      const SizedBox(height: 32),
+                      _buildIntegrationSection(
+                        context,
+                        data.integrations,
+                        state,
+                      ),
+                      const SizedBox(height: 32),
+                      _buildTopContentTable(data.topContent),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
+              ),
             );
           }
 
-          _animationController.forward();
-          return Consumer<ReportProvider>(
-            builder: (context, reportProvider, child) {
-              return FadeTransition(
-                opacity: _fadeAnimation,
-                child: ListView(
-                  key: const PageStorageKey('reportPage'),
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
-                  children: [
-                    _buildHeader(Theme.of(context).textTheme),
-                    const SizedBox(height: 32),
-                    _buildStatsGrid(reportProvider),
-                    const SizedBox(height: 32),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: _buildTopPosts(Theme.of(context).textTheme, reportProvider),
-                        ),
-                        const SizedBox(width: 32),
-                        Expanded(
-                          flex: 2,
-                          child: _buildAnalyticsCard(Theme.of(context).textTheme, reportProvider),
-                        ),
-                      ],
+          if (state is ReportErrorState) {
+            return Center(
+              child: Container(
+                padding: const EdgeInsets.all(32),
+                margin: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
-                    const SizedBox(height: 32),
-                    _buildTrafficChartCard(Theme.of(context).textTheme, reportProvider),
-                    const SizedBox(height: 32),
                   ],
                 ),
-              );
-            },
-          );
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Color(0xFFEF4444),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      "Terjadi Kesalahan",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        context.read<ReportBloc>().add(LoadDashboardEvent());
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text("Muat Ulang"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return const SizedBox.shrink();
         },
       ),
     );
   }
 
-  Widget _buildHeader(TextTheme textTheme) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.analytics_rounded,
-            color: Colors.white,
-            size: 32,
-          ),
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withOpacity(0.1),
+            AppColors.primary.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(width: 20),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Laporan & Analitik',
-                style: textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Pantau performa dan statistik platform Anda secara komprehensif.',
-                style: textTheme.titleMedium?.copyWith(
-                  color: Colors.grey.shade600,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-            ],
+              ],
+            ),
+            child: const Icon(
+              Icons.analytics_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Laporan & Analitik',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Pantau performa platform dan integrasi data secara real-time',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade700,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildStatsGrid(ReportProvider provider) {
-    if (provider.isStatsLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (provider.statsErrorMessage != null) {
-      return Center(child: Text(provider.statsErrorMessage!));
-    }
+  Widget _buildStatsGrid(DashboardData data) {
+    final fmt = NumberFormat.decimalPattern('id_ID');
 
-    final stats = provider.monthlyStats ??
-        {'totalUsers': 0, 'newUsers': 0, 'newUsersChange': 0.0, 'totalPosts': 0, 'newPosts': 0};
-    final numberFormat = NumberFormat.decimalPattern('id_ID');
-    final double newUsersChange = (stats['newUsersChange'] as num).toDouble();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount =
+            constraints.maxWidth > 1200
+                ? 4
+                : constraints.maxWidth > 800
+                ? 2
+                : 1;
 
-    final statsData = [
-      {'icon': Icons.people_alt_rounded, 'title': 'Total Pengguna', 'value': numberFormat.format(stats['totalUsers']), 'change': null},
-      {'icon': Icons.person_add_rounded, 'title': 'Pendaftar Baru (30 Hari)', 'value': numberFormat.format(stats['newUsers']), 'change': newUsersChange},
-      {'icon': Icons.article_rounded, 'title': 'Total Postingan', 'value': numberFormat.format(stats['totalPosts']), 'change': null},
-      {'icon': Icons.new_releases_rounded, 'title': 'Postingan Baru (30 Hari)', 'value': numberFormat.format(stats['newPosts']), 'change': null},
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 24,
-        mainAxisSpacing: 24,
-        childAspectRatio: 1.6,
-      ),
-      itemCount: statsData.length,
-      itemBuilder: (context, index) {
-        final data = statsData[index];
-        return TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.0, end: 1.0),
-          duration: Duration(milliseconds: 600 + (index * 150)),
-          curve: Curves.elasticOut,
-          builder: (context, value, child) {
-            return Transform.scale(
-              scale: value,
-              child: _buildEnhancedStatCard(
-                icon: data['icon'] as IconData,
-                title: data['title'] as String,
-                value: data['value'] as String,
-                change: data['change'] as double?,
-              ),
-            );
-          },
+        return GridView.count(
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 24,
+          mainAxisSpacing: 24,
+          shrinkWrap: true,
+          childAspectRatio: 1.4,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _buildModernStatCard(
+              title: "Total Pengguna",
+              value: fmt.format(data.userStats.total),
+              subtitle: "+${data.userStats.newThisMonth} bulan ini",
+              icon: Icons.people_alt_rounded,
+              gradientColors: const [Color(0xFF3B82F6), Color(0xFF2563EB)],
+              trend: data.userStats.growthPercentage,
+            ),
+            _buildModernStatCard(
+              title: "Total Postingan",
+              value: fmt.format(data.postStats.total),
+              subtitle: "+${data.postStats.new30Days} (30 hari)",
+              icon: Icons.article_rounded,
+              gradientColors: const [Color(0xFFF59E0B), Color(0xFFEA580C)],
+            ),
+            _buildModernStatCard(
+              title: "User Baru",
+              value: "${data.userStats.newThisMonth}",
+              subtitle: "Bulan lalu",
+              icon: Icons.person_add_alt_1_rounded,
+              gradientColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+              isComparison: true,
+            ),
+            _buildModernStatCard(
+              title: "Status Sistem",
+              value: "Online",
+              subtitle: "Backend & Database",
+              icon: Icons.cloud_done_rounded,
+              gradientColors: const [Color(0xFF10B981), Color(0xFF059669)],
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildEnhancedStatCard({required IconData icon, required String title, required String value, double? change}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 10,
-            spreadRadius: 2,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: CustomCard(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(25),
-                    borderRadius: BorderRadius.circular(10),
+  Widget _buildModernStatCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required List<Color> gradientColors,
+    double? trend,
+    bool isComparison = false,
+  }) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 800),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        return Transform.scale(
+          scale: 0.95 + (0.05 * animValue),
+          child: Opacity(
+            opacity: animValue,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: gradientColors[0].withOpacity(0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
-                  child: Icon(icon, color: AppColors.primary, size: 28),
-                ),
-                if (change != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: change >= 0 ? Colors.green.withAlpha(25) : Colors.red.withAlpha(25),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          change >= 0 ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                          color: change >= 0 ? Colors.green.shade600 : Colors.red.shade600,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${change.toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            color: change >= 0 ? Colors.green.shade600 : Colors.red.shade600,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  children: [
+                    // Gradient background decoration
+                    Positioned(
+                      top: -20,
+                      right: -20,
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              gradientColors[0].withOpacity(0.1),
+                              gradientColors[1].withOpacity(0.05),
+                            ],
                           ),
+                          shape: BoxShape.circle,
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    height: 1.2,
-                  ),
+                    // Content
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: gradientColors,
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: gradientColors[0].withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  icon,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                              if (trend != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        trend >= 0
+                                            ? const Color(
+                                              0xFF10B981,
+                                            ).withOpacity(0.1)
+                                            : const Color(
+                                              0xFFEF4444,
+                                            ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        trend >= 0
+                                            ? Icons.arrow_upward
+                                            : Icons.arrow_downward,
+                                        size: 14,
+                                        color:
+                                            trend >= 0
+                                                ? const Color(0xFF10B981)
+                                                : const Color(0xFFEF4444),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "${trend.toStringAsFixed(1)}%",
+                                        style: TextStyle(
+                                          color:
+                                              trend >= 0
+                                                  ? const Color(0xFF10B981)
+                                                  : const Color(0xFFEF4444),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  value,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: -1,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                subtitle,
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+              ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildTopPosts(TextTheme textTheme, ReportProvider provider) {
-    if (provider.isStatsLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return CustomCard(
-      padding: const EdgeInsets.all(24),
+  Widget _buildIntegrationSection(
+    BuildContext context,
+    IntegrationStatus integrations,
+    ReportLoadedState state,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(25),
-                  borderRadius: BorderRadius.circular(8),
+                  color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
-                  Icons.trending_up_rounded,
-                  color: AppColors.primary,
-                  size: 20,
+                  Icons.integration_instructions,
+                  color: Color(0xFF8B5CF6),
+                  size: 24,
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                '10 Postingan Info SS Terpopuler',
-                style: textTheme.titleLarge?.copyWith(
+              const Text(
+                "Integrasi & Ekspor Data",
+                style: TextStyle(
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth > 800) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _buildIntegrationCard(
+                        icon: Icons.table_chart_rounded,
+                        title: "Google Sheets",
+                        status:
+                            integrations.sheetsConnected
+                                ? "Terhubung"
+                                : "Terputus",
+                        statusColor:
+                            integrations.sheetsConnected
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFEF4444),
+                        actionLabel: "Export Data",
+                        isLoading: false,
+                        onAction: () {
+                          context.read<ReportBloc>().add(TriggerExportEvent());
+                        },
+                        gradientColors: const [
+                          Color(0xFF10B981),
+                          Color(0xFF059669),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: _buildIntegrationCard(
+                        icon: Icons.analytics_outlined,
+                        title: "Google Analytics",
+                        status:
+                            integrations.analyticsConnected
+                                ? "Aktif (${state.analyticsData?.activeUsersNow ?? '-'} user online)"
+                                : "Memuat...",
+                        statusColor: const Color(0xFFF59E0B),
+                        actionLabel: "Buka Analytics",
+                        isLoading: state.isAnalyticsLoading,
+                        onAction: () {
+                          _launchURL("https://analytics.google.com/");
+                        },
+                        gradientColors: const [
+                          Color(0xFFF59E0B),
+                          Color(0xFFEA580C),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              } else {
+                return Column(
+                  children: [
+                    _buildIntegrationCard(
+                      icon: Icons.table_chart_rounded,
+                      title: "Google Sheets",
+                      status:
+                          integrations.sheetsConnected
+                              ? "Terhubung"
+                              : "Terputus",
+                      statusColor:
+                          integrations.sheetsConnected
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444),
+                      actionLabel: "Export Data",
+                      isLoading: false,
+                      onAction: () {
+                        context.read<ReportBloc>().add(TriggerExportEvent());
+                      },
+                      gradientColors: const [
+                        Color(0xFF10B981),
+                        Color(0xFF059669),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildIntegrationCard(
+                      icon: Icons.analytics_outlined,
+                      title: "Google Analytics",
+                      status:
+                          integrations.analyticsConnected
+                              ? "Aktif (${state.analyticsData?.activeUsersNow ?? '-'} user online)"
+                              : "Memuat...",
+                      statusColor: const Color(0xFFF59E0B),
+                      actionLabel: "Buka Analytics",
+                      isLoading: state.isAnalyticsLoading,
+                      onAction: () {
+                        _launchURL("https://analytics.google.com/");
+                      },
+                      gradientColors: const [
+                        Color(0xFFF59E0B),
+                        Color(0xFFEA580C),
+                      ],
+                    ),
+                  ],
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntegrationCard({
+    required IconData icon,
+    required String title,
+    required String status,
+    required Color statusColor,
+    required String actionLabel,
+    required VoidCallback onAction,
+    required List<Color> gradientColors,
+    bool isLoading = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            gradientColors[0].withOpacity(0.05),
+            gradientColors[1].withOpacity(0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: gradientColors[0].withOpacity(0.2), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradientColors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gradientColors[0].withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(
-                Colors.grey.shade100,
-              ),
-              headingTextStyle: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
-                fontSize: 14,
-              ),
-              dataRowMaxHeight: 60,
-              columnSpacing: 16,
-              columns: const [
-                DataColumn(label: Text('#')),
-                DataColumn(label: Expanded(child: Text('Judul Postingan'))),
-                DataColumn(label: Text('Views'), numeric: true),
-              ],
-              rows: provider.topPosts.asMap().entries.map((entry) {
-                int index = entry.key;
-                InfossModel post = entry.value;
-                return DataRow(
-                  color: WidgetStateProperty.resolveWith<Color?>(
-                        (Set<WidgetState> states) {
-                      if (states.contains(WidgetState.hovered)) {
-                        return AppColors.primary.withValues(alpha: 0.05);
-                      }
-                      return null;
-                    },
+            child:
+                isLoading
+                    ? const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                    : ElevatedButton(
+                      onPressed: onAction,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: gradientColors[0],
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: gradientColors[0].withOpacity(0.3),
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        actionLabel,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopContentTable(List<TopContent> contents) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFEA580C)],
                   ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.trending_up_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  "10 Konten Terpopuler",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Responsive layout: Table for desktop/tablet, Cards for mobile
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Mobile view: Card layout
+              if (constraints.maxWidth < 600) {
+                return _buildMobileContentList(contents);
+              }
+              // Tablet view: Condensed table
+              else if (constraints.maxWidth < 900) {
+                return _buildTabletContentTable(contents);
+              }
+              // Desktop view: Full table
+              else {
+                return _buildDesktopContentTable(contents);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Desktop: Full table with all columns
+  Widget _buildDesktopContentTable(List<TopContent> contents) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 800),
+        child: DataTable(
+          headingRowHeight: 56,
+          dataRowMinHeight: 64,
+          dataRowMaxHeight: 80,
+          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8F9FE)),
+          dividerThickness: 0,
+          columnSpacing: 24,
+          columns: [
+            DataColumn(
+              label: Text(
+                '#',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Judul',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Kategori',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Views',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Likes',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+          rows:
+              contents.asMap().entries.map((entry) {
+                final index = entry.key + 1;
+                final item = entry.value;
+                return DataRow(
                   cells: [
                     DataCell(
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
-                          color: _getRankColor(index),
+                          gradient:
+                              index <= 3
+                                  ? const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFBBF24),
+                                      Color(0xFFF59E0B),
+                                    ],
+                                  )
+                                  : null,
+                          color: index > 3 ? Colors.grey.shade100 : null,
                           shape: BoxShape.circle,
                         ),
+                        alignment: Alignment.center,
                         child: Text(
-                          '${index + 1}',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          '$index',
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: 13,
+                            color: index <= 3 ? Colors.white : Colors.grey[600],
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ),
                     ),
                     DataCell(
-                      SizedBox(
-                        width: 250,
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 400),
                         child: Text(
-                          post.judul,
+                          item.title,
                           overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
                           style: const TextStyle(
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            height: 1.3,
                           ),
                         ),
                       ),
@@ -405,154 +1027,410 @@ class _ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
+                          color: const Color(0xFF8B5CF6).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          NumberFormat.compact().format(post.jumlahView),
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
+                          item.category,
+                          style: const TextStyle(
+                            color: Color(0xFF8B5CF6),
                             fontWeight: FontWeight.w600,
+                            fontSize: 12,
                           ),
                         ),
+                      ),
+                    ),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.visibility_outlined,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            NumberFormat.compact().format(item.views),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.favorite_outline,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            NumberFormat.compact().format(item.likes),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 );
               }).toList(),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Color _getRankColor(int index) {
-    switch (index) {
-      case 0:
-        return const Color(0xFFD4AF37); // Gold
-      case 1:
-        return const Color(0xFFC0C0C0); // Silver
-      case 2:
-        return const Color(0xFFCD7F32); // Bronze
-      default:
-        return Colors.grey.shade400;
-    }
+  // Tablet: Condensed table without category column
+  Widget _buildTabletContentTable(List<TopContent> contents) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 500),
+        child: DataTable(
+          headingRowHeight: 56,
+          dataRowMinHeight: 64,
+          dataRowMaxHeight: 80,
+          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8F9FE)),
+          dividerThickness: 0,
+          columnSpacing: 16,
+          columns: [
+            DataColumn(
+              label: Text(
+                '#',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Judul',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Views',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Likes',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+          rows:
+              contents.asMap().entries.map((entry) {
+                final index = entry.key + 1;
+                final item = entry.value;
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          gradient:
+                              index <= 3
+                                  ? const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFBBF24),
+                                      Color(0xFFF59E0B),
+                                    ],
+                                  )
+                                  : null,
+                          color: index > 3 ? Colors.grey.shade100 : null,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$index',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: index <= 3 ? Colors.white : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 250),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              item.title,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                item.category,
+                                style: const TextStyle(
+                                  color: Color(0xFF8B5CF6),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.visibility_outlined,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            NumberFormat.compact().format(item.views),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.favorite_outline,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            NumberFormat.compact().format(item.likes),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+        ),
+      ),
+    );
   }
 
-  Widget _buildAnalyticsCard(TextTheme textTheme, ReportProvider provider) {
-    return CustomCard(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  // Mobile: Card-based list view
+  Widget _buildMobileContentList(List<TopContent> contents) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: contents.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final item = contents[index];
+        final rank = index + 1;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FE),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color:
+                  rank <= 3
+                      ? const Color(0xFFF59E0B).withOpacity(0.3)
+                      : Colors.grey.shade200,
+              width: rank <= 3 ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Ranking badge
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.purple.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  gradient:
+                      rank <= 3
+                          ? const LinearGradient(
+                            colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                          : null,
+                  color: rank > 3 ? Colors.grey.shade200 : null,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow:
+                      rank <= 3
+                          ? [
+                            BoxShadow(
+                              color: const Color(0xFFF59E0B).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                          : null,
                 ),
-                child: const Icon(
-                  Icons.integration_instructions_rounded,
-                  color: Colors.purple,
-                  size: 20,
+                alignment: Alignment.center,
+                child: Text(
+                  '$rank',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: rank <= 3 ? Colors.white : Colors.grey[700],
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                'Integrasi & Ekspor',
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+
+              // Content details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Category
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.category,
+                        style: const TextStyle(
+                          color: Color(0xFF8B5CF6),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Stats row
+                    Row(
+                      children: [
+                        // Views
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.visibility_outlined,
+                                size: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  NumberFormat.compact().format(item.views),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+
+                        // Likes
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.favorite_outline,
+                                size: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  NumberFormat.compact().format(item.likes),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          _buildSheetsActionButton(context),
-          const SizedBox(height: 16),
-          _buildActionButton(
-            icon: Icons.analytics_outlined,
-            label: 'Buka Google Analytics',
-            colors: [const Color(0xFFF9AB00), const Color(0xFFF4B400)],
-            onPressed: () {
-              const analyticsUrl = 'https://analytics.google.com/';
-              _launchURL(analyticsUrl);
-              FirebaseAnalytics.instance.logEvent(name: 'open_google_analytics', parameters: {'url': analyticsUrl});
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSheetsActionButton(BuildContext context) {
-    final provider = context.watch<ReportProvider>();
-    const sheetUrl = 'https://docs.google.com/spreadsheets/d/1F2obOikLOn92ewLwLlPhmVdhAW19EO15CcOZG_rtOWc';
-
-    return PopupMenuButton<String>(
-      onSelected: (value) async {
-        switch (value) {
-          case 'open':
-            _launchURL(sheetUrl);
-            break;
-          case 'export_posts':
-            final success = await provider.exportPostsToSheet();
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(provider.exportPostsMessage ?? "Terjadi kesalahan."),
-                backgroundColor: success ? AppColors.success : AppColors.error,
-              ));
-            }
-            break;
-          case 'export_users':
-            final success = await provider.exportUsersToSheet();
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(provider.exportUsersMessage ?? "Terjadi kesalahan."),
-                backgroundColor: success ? AppColors.success : AppColors.error,
-              ));
-            }
-            break;
-        }
+        );
       },
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
-          value: 'open',
-          child: ListTile(
-            leading: Icon(Icons.open_in_new),
-            title: Text('Buka di Sheets'),
-          ),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'export_posts',
-          enabled: !provider.isExportingPosts,
-          child: ListTile(
-            leading: provider.isExportingPosts
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.article_outlined),
-            title: const Text('Export Data Postingan'),
-          ),
-        ),
-        PopupMenuItem<String>(
-          value: 'export_users',
-          enabled: !provider.isExportingUsers,
-          child: ListTile(
-            leading: provider.isExportingUsers
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.people_alt_outlined),
-            title: const Text('Export Data Pengguna'),
-          ),
-        ),
-      ],
-      child: _buildActionButton(
-        icon: Icons.table_chart_outlined,
-        label: 'Aksi Google Sheets',
-        colors: [const Color(0xFF188038), const Color(0xFF34A853)],
-        onPressed: null,
-      ),
     );
   }
 
@@ -560,372 +1438,6 @@ class _ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tidak bisa membuka $url')),
-        );
-      }
     }
-  }
-
-  Widget _buildActionButton({required IconData icon, required String label, required List<Color> colors, VoidCallback? onPressed}) {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: colors),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: colors.first.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTrafficChartCard(TextTheme textTheme, ReportProvider provider) {
-    return CustomCard(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.bar_chart_rounded,
-                        color: Colors.blue,
-                        size: 20,
-                      ),
-                    ),
-                    Text(
-                      provider.trafficChartTitle,
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<TrafficType>(
-                          value: provider.selectedTrafficType,
-                          items: const [
-                            DropdownMenuItem(value: TrafficType.AllViews, child: Text("Semua Kunjungan")),
-                            DropdownMenuItem(value: TrafficType.Posts, child: Text("Postingan")),
-                            DropdownMenuItem(value: TrafficType.NewUsers, child: Text("Pengguna Baru")),
-                          ],
-                          onChanged: provider.isTrafficLoading
-                              ? null
-                              : (type) {
-                            if (type != null) {
-                              provider.fetchTrafficReport(provider.selectedTimeRange, type: type, startDate: _startDate, endDate: _endDate);
-                            }
-                          },
-                          style: textTheme.bodyMedium,
-                          focusColor: Colors.transparent,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _buildTimeRangeFilters(provider),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Container(
-            height: 320,
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: provider.isTrafficLoading
-                ? const Center(child: CircularProgressIndicator())
-                : provider.trafficData.isEmpty
-                ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.data_usage_rounded,
-                    size: 48,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Tidak ada data traffic untuk rentang ini.",
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            )
-                : Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: _buildBarChart(provider),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeRangeFilters(ReportProvider provider) {
-    return Wrap(
-      spacing: 8.0,
-      children: [
-        ...TrafficTimeRange.values.where((range) => range != TrafficTimeRange.Custom).map((range) {
-          final isSelected = provider.selectedTimeRange == range;
-          return FilterChip(
-            label: Text(
-              _toBeginningOfSentenceCase(range.name),
-              style: TextStyle(
-                color: isSelected ? Colors.white : AppColors.foreground,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            selected: isSelected,
-            onSelected: provider.isTrafficLoading
-                ? null
-                : (bool selected) {
-              if (selected) {
-                setState(() {
-                  _startDate = null;
-                  _endDate = null;
-                });
-                provider.fetchTrafficReport(range);
-              }
-            },
-            backgroundColor: Colors.grey.shade200,
-            selectedColor: AppColors.primary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(
-                color: isSelected ? AppColors.primary : Colors.grey.shade300,
-              ),
-            ),
-            showCheckmark: false,
-          );
-        }).toList(),
-        _buildCustomDateRangePicker(provider),
-      ],
-    );
-  }
-
-  Widget _buildCustomDateRangePicker(ReportProvider provider) {
-    final startDateStr = _startDate != null ? DateFormat('dd MMM yyyy').format(_startDate!) : 'Pilih Tanggal Mulai';
-    final endDateStr = _endDate != null ? DateFormat('dd MMM yyyy').format(_endDate!) : 'Pilih Tanggal Akhir';
-    final isCustomSelected = provider.selectedTimeRange == TrafficTimeRange.Custom;
-
-    return ActionChip(
-      avatar: Icon(Icons.calendar_today_rounded, size: 18, color: isCustomSelected ? Colors.white : AppColors.foreground),
-      label: Text(
-        isCustomSelected ? '$startDateStr - $endDateStr' : 'Rentang Kustom',
-        style: TextStyle(
-          color: isCustomSelected ? Colors.white : AppColors.foreground,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      onPressed: provider.isTrafficLoading
-          ? null
-          : () async {
-        final pickedRange = await showDateRangePicker(
-          context: context,
-          firstDate: DateTime(2020),
-          lastDate: DateTime.now(),
-          initialDateRange: _startDate != null && _endDate != null
-              ? DateTimeRange(start: _startDate!, end: _endDate!)
-              : null,
-          builder: (context, child) {
-            return Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 800.0,
-                  maxHeight: 600.0,
-                ),
-                child: Theme(
-                  data: ThemeData.light().copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: AppColors.primary,
-                      onPrimary: Colors.white,
-                    ),
-                  ),
-                  child: child!,
-                ),
-              ),
-            );
-          },
-        );
-        if (pickedRange != null) {
-          setState(() {
-            _startDate = pickedRange.start;
-            _endDate = pickedRange.end;
-          });
-          provider.fetchTrafficReport(TrafficTimeRange.Custom, startDate: _startDate, endDate: _endDate);
-        }
-      },
-      backgroundColor: isCustomSelected ? AppColors.primary : Colors.grey.shade200,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isCustomSelected ? AppColors.primary : Colors.grey.shade300,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBarChart(ReportProvider provider) {
-    double maxY = 0;
-    if (provider.trafficData.isNotEmpty) {
-      maxY = provider.trafficData.reduce((a, b) => a > b ? a : b) * 1.2;
-    }
-    if (maxY < 5) maxY = 5;
-
-    return BarChart(
-      BarChartData(
-        maxY: maxY,
-        barTouchData: BarTouchData(
-          touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              String tooltipText;
-              switch (provider.selectedTrafficType) {
-                case TrafficType.NewUsers:
-                  tooltipText = '${rod.toY.toInt()} pengguna baru';
-                  break;
-                case TrafficType.Posts:
-                  tooltipText = '${rod.toY.toInt()} postingan baru';
-                  break;
-                default:
-                  tooltipText = '${rod.toY.toInt()} kunjungan';
-              }
-              return BarTooltipItem(
-                tooltipText,
-                const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              );
-            },
-          ),
-        ),
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                int index = value.toInt();
-                if (index < 0 || index >= provider.trafficLabels.length) {
-                  return const Text('');
-                }
-                return SideTitleWidget(
-                  axisSide: meta.axisSide,
-                  space: 4,
-                  child: Text(
-                    provider.trafficLabels[index],
-                    style: TextStyle(
-                      color: AppColors.foreground.withValues(alpha: 0.7),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                );
-              },
-              reservedSize: 28,
-              interval: provider.selectedTimeRange == TrafficTimeRange.Bulanan ? 3 : 1,
-            ),
-          ),
-          leftTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Colors.grey.shade200,
-            strokeWidth: 1,
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        barGroups: provider.trafficData.asMap().entries.map((e) {
-          return BarChartGroupData(
-            x: e.key,
-            barRods: [
-              BarChartRodData(
-                toY: e.value,
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primary.withAlpha(150),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-                width: 20,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(6),
-                ),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
-    );
   }
 }
