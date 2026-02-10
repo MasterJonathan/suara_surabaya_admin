@@ -305,17 +305,27 @@ class _KawanssPostPageState extends State<KawanssPostPage> {
                           else
                             Column(
                               children: [
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: _buildDataTable(
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    return SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: ConstrainedBox(
+                                        // Paksa lebar MINIMAL sama dengan lebar layar yang tersedia
+                                        constraints: BoxConstraints(
+                                          minWidth: constraints.maxWidth,
+                                        ),
+                                        // HAPUS SizedBox(width: double.infinity) DI SINI
+                                        // Langsung panggil tabelnya
+                                        child: _buildDataTable(
                                       provider.posts,
                                       true,
                                       provider,
                                     ),
-                                  ),
+                                      ),
+                                    );
+                                  },
                                 ),
+
 
                                 // HANYA TAMPILKAN TOMBOL LOAD MORE JIKA TIDAK LIVE MODE
                                 if (!provider.isLiveMode) ...[

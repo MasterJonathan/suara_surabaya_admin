@@ -78,6 +78,8 @@ class DashboardLayout extends StatelessWidget {
         return const AdminAccessPage();
 
 
+      case DashboardPage.socialnetworkanalysis:
+        return const ReportPage();
       case DashboardPage.reportCall:
         return const CallActivityReportPage();
       case DashboardPage.reportUserRegistration:

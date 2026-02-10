@@ -330,13 +330,20 @@ class _BannerTopPageState extends State<BannerTopPage> {
                             const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("Tidak ada data ditemukan.")))
                           else
                             Column(
-                              children: [
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: _buildDataTable(provider),
-                                  ),
+                              children: [                             
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    return SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: ConstrainedBox(
+                                        // Paksa lebar MINIMAL sama dengan lebar layar yang tersedia
+                                        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                                        // HAPUS SizedBox(width: double.infinity) DI SINI
+                                        // Langsung panggil tabelnya
+                                        child: _buildDataTable(provider),
+                                      ),
+                                    );
+                                  },
                                 ),
                                 if (provider.showContinueSearchButton)
                                   _buildContinueSearchButton(provider)

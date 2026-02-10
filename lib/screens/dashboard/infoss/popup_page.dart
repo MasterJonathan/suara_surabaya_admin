@@ -330,12 +330,19 @@ class _PopUpPageState extends State<PopUpPage> {
                           else
                             Column(
                               children: [
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: _buildDataTable(provider),
-                                  ),
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    return SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: ConstrainedBox(
+                                        // Paksa lebar MINIMAL sama dengan lebar layar yang tersedia
+                                        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                                        // HAPUS SizedBox(width: double.infinity) DI SINI
+                                        // Langsung panggil tabelnya
+                                        child: _buildDataTable(provider),
+                                      ),
+                                    );
+                                  },
                                 ),
                                 if (provider.showContinueSearchButton)
                                   _buildContinueSearchButton(provider)
