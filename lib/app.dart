@@ -27,6 +27,7 @@ import 'package:suara_surabaya_admin/screens/auth/login_screen.dart';
 import 'package:suara_surabaya_admin/screens/auth/register_screen.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/dashboard_layout.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/report/report_provider.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/report_data/kawanss_registration_report_page.dart';
 import 'package:suara_surabaya_admin/screens/unknown_screen.dart';
 import 'package:suara_surabaya_admin/core/services/call_service.dart';
 import 'package:flutter/material.dart';
@@ -159,6 +160,12 @@ class AdminDashboardApp extends StatelessWidget {
                 firestoreService: context.read<FirestoreService>(),
               ),
         ),
+        // ChangeNotifierProvider<ChatProvider>(
+        //   create:
+        //       (context) => ChatProvider(
+        //         firestoreService: context.read<FirestoreService>(),
+        //       ),
+        // ),
         ChangeNotifierProvider<KawanSSRegistrationReportProvider>(
           create:
               (context) => KawanSSRegistrationReportProvider(
