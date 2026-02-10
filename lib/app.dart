@@ -7,7 +7,6 @@ import 'package:suara_surabaya_admin/providers/auth/authentication_provider.dart
 import 'package:suara_surabaya_admin/providers/dashboard/call/call_history_provider.dart';
 import 'package:suara_surabaya_admin/providers/dashboard/call/call_provider.dart';
 import 'package:suara_surabaya_admin/providers/dashboard/infoss/banner_provider.dart';
-import 'package:suara_surabaya_admin/providers/chat_provider.dart';
 import 'package:suara_surabaya_admin/providers/dashboard/report/call_activity_report_provider.dart';
 import 'package:suara_surabaya_admin/providers/dashboard/report/infoss_post_report_provider.dart';
 import 'package:suara_surabaya_admin/providers/dashboard/infoss/infoss_provider.dart';
@@ -26,7 +25,6 @@ import 'package:suara_surabaya_admin/providers/dashboard/user_management/user_pr
 import 'package:suara_surabaya_admin/screens/auth/login_screen.dart';
 import 'package:suara_surabaya_admin/screens/auth/register_screen.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/dashboard_layout.dart';
-import 'package:suara_surabaya_admin/screens/dashboard/report/report_provider.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/report_data/kawanss_registration_report_page.dart';
 import 'package:suara_surabaya_admin/screens/unknown_screen.dart';
 import 'package:suara_surabaya_admin/core/services/call_service.dart';
@@ -148,12 +146,6 @@ class AdminDashboardApp extends StatelessWidget {
 
         // 8. Laporan & Analitik (Reports)
         // --- TAMBAHKAN PROVIDER BARU DI SINI ---
-        ChangeNotifierProvider<ReportProvider>(
-          create:
-              (context) => ReportProvider(
-                firestoreService: context.read<FirestoreService>(),
-              ),
-        ),
         ChangeNotifierProvider<CallActivityReportProvider>(
           create:
               (context) => CallActivityReportProvider(
