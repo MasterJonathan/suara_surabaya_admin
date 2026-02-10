@@ -1,5 +1,3 @@
-// lib/models/tema_siaran_model.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TemaSiaranModel {
@@ -12,7 +10,7 @@ class TemaSiaranModel {
   final int hits;
   final DateTime tanggalPosting;
   final String dipostingOleh;
-  final bool isDefault; // <-- FIELD BARU
+  final bool isDefault;
 
   TemaSiaranModel({
     required this.id,
@@ -24,7 +22,7 @@ class TemaSiaranModel {
     required this.hits,
     required this.tanggalPosting,
     required this.dipostingOleh,
-    this.isDefault = false, // <-- TAMBAHKAN DI CONSTRUCTOR
+    this.isDefault = false,
   });
 
   factory TemaSiaranModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot, SnapshotOptions? options) {
@@ -39,7 +37,7 @@ class TemaSiaranModel {
       hits: data['hits'] ?? 0,
       tanggalPosting: (data['tanggalPosting'] as Timestamp?)?.toDate() ?? DateTime.now(),
       dipostingOleh: data['dipostingOleh'] ?? '',
-      isDefault: data['isDefault'] ?? false, // <-- AMBIL DARI FIRESTORE
+      isDefault: data['isDefault'] ?? false,
     );
   }
 
@@ -53,7 +51,34 @@ class TemaSiaranModel {
       'hits': hits,
       'tanggalPosting': Timestamp.fromDate(tanggalPosting),
       'dipostingOleh': dipostingOleh,
-      'isDefault': isDefault, // <-- SIMPAN KE FIRESTORE
+      'isDefault': isDefault,
     };
+  }
+
+  // --- METODE PENTING BARU ---
+  TemaSiaranModel copyWith({
+    String? id,
+    String? namaTema,
+    DateTime? tanggalAktifMulai,
+    DateTime? tanggalAktifSelesai,
+    String? temaImageUrl,
+    bool? status,
+    int? hits,
+    DateTime? tanggalPosting,
+    String? dipostingOleh,
+    bool? isDefault,
+  }) {
+    return TemaSiaranModel(
+      id: id ?? this.id,
+      namaTema: namaTema ?? this.namaTema,
+      tanggalAktifMulai: tanggalAktifMulai ?? this.tanggalAktifMulai,
+      tanggalAktifSelesai: tanggalAktifSelesai ?? this.tanggalAktifSelesai,
+      temaImageUrl: temaImageUrl ?? this.temaImageUrl,
+      status: status ?? this.status,
+      hits: hits ?? this.hits,
+      tanggalPosting: tanggalPosting ?? this.tanggalPosting,
+      dipostingOleh: dipostingOleh ?? this.dipostingOleh,
+      isDefault: isDefault ?? this.isDefault,
+    );
   }
 }

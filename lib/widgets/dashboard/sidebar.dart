@@ -32,14 +32,26 @@ class _SidebarState extends State<Sidebar> {
       ),
 
       SidebarMenuItem(
-        title: 'Manajemen Panggilan',
+        title: 'Call Management',
         icon: Icons.call,
-        page: DashboardPage.videoCall,
-      ),
-      SidebarMenuItem(
-        title: 'Simulator Panggilan (Dev)',
-        icon: Icons.bug_report,
-        page: DashboardPage.callSimulator,
+        isExpanded: false,
+        subItems: [
+          SidebarMenuItem(
+            title: 'Manajemen Panggilan',
+            icon: Icons.call,
+            page: DashboardPage.videoCall,
+          ),
+          SidebarMenuItem(
+            title: 'Call History',
+            icon: Icons.call,
+            page: DashboardPage.callHistory,
+          ),
+          SidebarMenuItem(
+            title: 'Simulator Panggilan (Dev)',
+            icon: Icons.bug_report,
+            page: DashboardPage.callSimulator,
+          ),
+        ],
       ),
 
       SidebarMenuItem(
@@ -80,11 +92,6 @@ class _SidebarState extends State<Sidebar> {
         icon: Icons.folder_open_outlined,
         isExpanded: false,
         subItems: [
-          SidebarMenuItem(
-            title: '[VIA USER] Kawan SS Management',
-            icon: Icons.radio_button_unchecked_outlined,
-            page: DashboardPage.kawanssManagement,
-          ),
           SidebarMenuItem(
             title: '[OK] Kawan SS Post',
             icon: Icons.radio_button_unchecked_outlined,
@@ -152,17 +159,16 @@ class _SidebarState extends State<Sidebar> {
             page: DashboardPage.settings,
           ),
           SidebarMenuItem(
-            title: '[BELUM] User Admin Management',
+            title: '[BELUM] User Account Management',
             icon: Icons.radio_button_unchecked_outlined,
-            page: DashboardPage.userAdminManagement,
+            page: DashboardPage.usersAccountManagement,
+          ),
+          SidebarMenuItem(
+            title: '[BELUM] Admin Management',
+            icon: Icons.radio_button_unchecked_outlined,
+            page: DashboardPage.adminManagement,
           ),
         ],
-      ),
-
-      SidebarMenuItem(
-        title: 'Laporan & Analitik',
-        icon: Icons.insights_outlined,
-        page: DashboardPage.report,
       ),
 
       SidebarMenuItem(
@@ -171,21 +177,15 @@ class _SidebarState extends State<Sidebar> {
         isExpanded: false,
         subItems: [
           SidebarMenuItem(
-            title: 'Report SNA',
-            icon: Icons.radio_button_unchecked_outlined,
-            page: DashboardPage.report,
+            title: 'Laporan & Analitik',
+            icon: Icons.insights_outlined,
+            page: DashboardPage.socialnetworkanalysis,
           ),
           SidebarMenuItem(
-            title: 'Video Call',
+            title: 'Audio Video Call',
             icon: Icons.radio_button_unchecked_outlined,
-            page: DashboardPage.reportManagement,
+            page: DashboardPage.reportCall,
           ),
-          SidebarMenuItem(
-            title: 'Audio Call',
-            icon: Icons.radio_button_unchecked_outlined,
-            page: DashboardPage.reportManagement,
-          ),
-
           SidebarMenuItem(
             title: '[BELUM] Registrasi Kontributor',
             icon: Icons.radio_button_unchecked_outlined,
@@ -201,16 +201,6 @@ class _SidebarState extends State<Sidebar> {
             icon: Icons.radio_button_unchecked_outlined,
             page: DashboardPage.reportKawanSSPost,
           ),
-          SidebarMenuItem(
-            title: 'Like Posting',
-            icon: Icons.radio_button_unchecked_outlined,
-            page: DashboardPage.reportManagement,
-          ),
-          SidebarMenuItem(
-            title: 'View Posting',
-            icon: Icons.radio_button_unchecked_outlined,
-            page: DashboardPage.reportManagement,
-          ),
         ],
       ),
 
@@ -224,7 +214,6 @@ class _SidebarState extends State<Sidebar> {
         icon: Icons.radio_button_unchecked_outlined,
         page: DashboardPage.kategoriss,
       ),
-
     ];
   }
 

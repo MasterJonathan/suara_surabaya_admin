@@ -100,151 +100,148 @@ class _InfossPostReportPageState extends State<InfossPostReportPage> {
     final String dateRangeText =
         '${formatter.format(_startDate)} - ${formatter.format(_endDate)}';
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // HEADER & FILTER
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Laporan Posting Info SS',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // HEADER & FILTER
+        Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Laporan Posting Info SS',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Analisis jumlah postingan berita per hari',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Analisis jumlah postingan berita per hari',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                  ),
+                ],
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: TextButton.icon(
+                  onPressed: _showDateRangePicker,
+                  icon: const Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  label: Text(
+                    dateRangeText,
+                    style: const TextStyle(color: Colors.black87),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // SUMMARY CARDS
+        if (provider.state != ReportViewState.Busy)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              children: [
+                // Baris Pertama (Atas)
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Total Postingan',
+                        provider.totalPosts.toString(),
+                        Icons.article,
+                        Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Total Views',
+                        provider.totalViews.toString(),
+                        Icons.visibility,
+                        Colors.purple,
+                      ),
                     ),
                   ],
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: TextButton.icon(
-                    onPressed: _showDateRangePicker,
-                    icon: const Icon(
-                      Icons.calendar_today,
-                      size: 16,
-                      color: AppColors.primary,
-                    ),
-                    label: Text(
-                      dateRangeText,
-                      style: const TextStyle(color: Colors.black87),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 18,
+
+                const SizedBox(height: 16), // Jarak vertikal antar baris
+                // Baris Kedua (Bawah)
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Total Likes',
+                        provider.totalLikes.toString(),
+                        Icons.thumb_up,
+                        Colors.pink,
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Hari Tersibuk',
+                        provider.busiestDay,
+                        Icons.calendar_month,
+                        Colors.orange,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
 
-          // SUMMARY CARDS
-          if (provider.state != ReportViewState.Busy)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                children: [
-                  // Baris Pertama (Atas)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSummaryCard(
-                          'Total Postingan',
-                          provider.totalPosts.toString(),
-                          Icons.article,
-                          Colors.blue,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildSummaryCard(
-                          'Total Views',
-                          provider.totalViews.toString(),
-                          Icons.visibility,
-                          Colors.purple,
-                        ),
-                      ),
-                    ],
-                  ),
+        const SizedBox(height: 24),
 
-                  const SizedBox(height: 16), // Jarak vertikal antar baris
-                  // Baris Kedua (Bawah)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSummaryCard(
-                          'Total Likes',
-                          provider.totalLikes.toString(),
-                          Icons.thumb_up,
-                          Colors.pink,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildSummaryCard(
-                          'Hari Tersibuk',
-                          provider.busiestDay,
-                          Icons.calendar_month,
-                          Colors.orange,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-          const SizedBox(height: 24),
-
-
-          // TABEL TOP POSTS
-          if (provider.state != ReportViewState.Busy &&
-              provider.topPosts.isNotEmpty)
-            CustomCard(
-              margin: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Top 10 Info SS (Berdasarkan Views)',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: _buildTopPostsTable(provider.topPosts),
-                  ),
-                ],
-              ),
-            ),
-
-          
-
-          const SizedBox(height: 24),
-
-
-          // TABEL DATA HARIAN
+        // TABEL TOP POSTS
+        if (provider.state != ReportViewState.Busy &&
+            provider.topPosts.isNotEmpty)
           CustomCard(
-            margin: const EdgeInsets.symmetric(horizontal: 24.0),
+            margin: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Top 10 Info SS (Berdasarkan Views)',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: _buildTopPostsTable(provider.topPosts),
+                ),
+              ],
+            ),
+          ),
+
+        const SizedBox(height: 24),
+
+        // TABEL DATA HARIAN
+        Expanded(
+          child: CustomCard(
+            margin: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
             padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,17 +287,33 @@ class _InfossPostReportPageState extends State<InfossPostReportPage> {
                     ),
                   )
                 else
-                  SizedBox(
-                    width: double.infinity,
-                    child: _buildDailyDataTable(provider.reportData),
+                  Expanded( 
+                    // 1. Expanded agar mengambil sisa ruang di dalam Card
+                    child: SingleChildScrollView(
+                      // 2. Scroll Vertikal agar bisa di-scroll ke bawah
+                      scrollDirection: Axis.vertical,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return SingleChildScrollView(
+                            // 3. Scroll Horizontal agar aman jika kolom banyak
+                            scrollDirection: Axis.horizontal,
+                            child: ConstrainedBox(
+                              // 4. Pastikan lebar minimal selebar layar
+                              constraints: BoxConstraints(
+                                minWidth: constraints.maxWidth,
+                              ),
+                              child: _buildDailyDataTable(provider.reportData),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
               ],
             ),
           ),
-
-          
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -439,7 +452,7 @@ class _InfossPostReportPageState extends State<InfossPostReportPage> {
           label: Text('Likes', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
       ],
-      rows: 
+      rows:
           posts.map((post) {
             return DataRow(
               cells: [

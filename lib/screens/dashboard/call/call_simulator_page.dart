@@ -1,8 +1,8 @@
 // lib/screens/dashboard/call_simulator_page.dart
 
 import 'package:suara_surabaya_admin/providers/auth/authentication_provider.dart';
-import 'package:suara_surabaya_admin/providers/dashboard/call_provider.dart';
-import 'package:suara_surabaya_admin/screens/dashboard/videocall/user_waiting_page.dart';
+import 'package:suara_surabaya_admin/providers/dashboard/call/call_provider.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/call/user_waiting_page.dart';
 import 'package:suara_surabaya_admin/widgets/common/custom_card.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

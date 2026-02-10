@@ -2,14 +2,14 @@
 
 import 'dart:async';
 import 'package:suara_surabaya_admin/core/services/firestore_service.dart';
+import 'package:suara_surabaya_admin/models/dashboard/call/call_history_log_model.dart';
 import 'package:suara_surabaya_admin/models/dashboard/user_activity/activity_model.dart';
-import 'package:suara_surabaya_admin/models/dashboard/user_activity/call_history_model.dart';
 import 'package:suara_surabaya_admin/models/dashboard/kawanss/kawanss_model.dart';
 import 'package:suara_surabaya_admin/models/dashboard/user_management/user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // <-- TAMBAHKAN IMPORT INI
 
-class KontributorProfileProvider extends ChangeNotifier {
+class UserProfileProvider extends ChangeNotifier {
   final FirestoreService _firestoreService;
   final String _kontributorId;
 
@@ -19,16 +19,16 @@ class KontributorProfileProvider extends ChangeNotifier {
   UserModel? _userProfile;
   List<KawanssModel> _posts = [];
   List<ActivityModel> _activities = [];
-  List<CallHistoryModel> _callHistory = [];
+  List<CallHistoryLogModel> _callHistory = [];
   bool _isLoading = true;
 
   UserModel? get userProfile => _userProfile;
   List<KawanssModel> get posts => _posts;
   List<ActivityModel> get activities => _activities;
-  List<CallHistoryModel> get callHistory => _callHistory;
+  List<CallHistoryLogModel> get callHistory => _callHistory;
   bool get isLoading => _isLoading;
 
-  KontributorProfileProvider({
+  UserProfileProvider({
     required FirestoreService firestoreService,
     required String kontributorId,
   }) : _firestoreService = firestoreService, _kontributorId = kontributorId {

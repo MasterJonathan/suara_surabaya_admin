@@ -1,9 +1,12 @@
 import 'package:suara_surabaya_admin/providers/auth/authentication_provider.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/call/call_history_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/infoss/infoss_comment_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/kawanss/kawanss_comment_page.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/report_data/call_activity_report_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/report_data/infoss_post_report_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/report_data/kawanss_post_report_page.dart';
-import 'package:suara_surabaya_admin/screens/dashboard/videocall/admin_call_page.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/user_management/admin_access_page.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/call/admin_call_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/berita/berita_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/chat_management_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/infoss/banner_top_page.dart';
@@ -19,8 +22,8 @@ import 'package:suara_surabaya_admin/screens/dashboard/overview_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/profile_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/user_management/change_password_page.dart';
 import 'package:suara_surabaya_admin/screens/dashboard/user_management/settings_page.dart';
-import 'package:suara_surabaya_admin/screens/dashboard/user_management/users_page.dart';
-import 'package:suara_surabaya_admin/screens/dashboard/videocall/call_simulator_page.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/user_management/general_users_page.dart';
+import 'package:suara_surabaya_admin/screens/dashboard/call/call_simulator_page.dart';
 import 'package:suara_surabaya_admin/widgets/dashboard/app_bar_actions.dart';
 import 'package:suara_surabaya_admin/widgets/dashboard/sidebar.dart';
 import 'package:suara_surabaya_admin/core/navigation/navigation_service.dart';
@@ -35,21 +38,15 @@ class DashboardLayout extends StatelessWidget {
     switch (page) {
       case DashboardPage.overview:
         return const OverviewPage();
+      case DashboardPage.profile:
+        return const ProfilePage();
 
       case DashboardPage.videoCall:
         return const AdminCallPage();
+      case DashboardPage.callHistory:
+        return const CallHistoryPage();
       case DashboardPage.callSimulator:
         return const CallSimulatorPage();
-
-      case DashboardPage.report:
-        return const ReportPage();
-
-      case DashboardPage.changePassword:
-        return const ChangePasswordPage();
-      case DashboardPage.settings:
-        return const SettingsPage();
-      case DashboardPage.userAdminManagement:
-        return const UsersAdminPage();
 
       case DashboardPage.temaSiaran:
         return const TemaSiaranPage();
@@ -62,22 +59,29 @@ class DashboardLayout extends StatelessWidget {
       case DashboardPage.infoSSComment:
         return const InfossCommentPage();
 
-      case DashboardPage.berita:
-        return const BeritaPage();
-      // case DashboardPage.kawanssManagement:
-      //   return const KawanssManagementPage();
+
       case DashboardPage.kawanssPost:
         return const KawanssPostPage();
       case DashboardPage.kawanssComment:
         return const KawanssCommentPage();
 
+      case DashboardPage.berita:
+        return const BeritaPage();
+
+      case DashboardPage.changePassword:
+        return const ChangePasswordPage();
+      case DashboardPage.settings:
+        return const SettingsPage();
+      case DashboardPage.usersAccountManagement:
+        return const GeneralUserPage();
+      case DashboardPage.adminManagement:
+        return const AdminAccessPage();
 
 
-      // case DashboardPage.chatManagement:
-      //   return const ChatManagementPage();
-
-      case DashboardPage.kategoriss:
-        return const KategoriPage();
+      case DashboardPage.socialnetworkanalysis:
+        return const ReportPage();
+      case DashboardPage.reportCall:
+        return const CallActivityReportPage();
       case DashboardPage.reportUserRegistration:
         return const KawanSSRegistrationReportPage();
       case DashboardPage.reportInfoSSPost:
@@ -85,8 +89,13 @@ class DashboardLayout extends StatelessWidget {
       case DashboardPage.reportKawanSSPost:
         return const KawanssPostReportPage();
 
-      case DashboardPage.profile:
-        return const ProfilePage();
+
+      // case DashboardPage.chatManagement:
+      //   return const ChatManagementPage();
+      case DashboardPage.kategoriss:
+        return const KategoriPage();
+
+
       default:
         return const OverviewPage();
     }
@@ -172,7 +181,9 @@ class DashboardLayout extends StatelessWidget {
 
       // Di dalam _getPageTitle
       case DashboardPage.videoCall:
-        return 'Video Call';
+        return 'Audio / Video Call';
+      case DashboardPage.callHistory:
+        return 'Audio / Video Call History';
 
 
       case DashboardPage.temaSiaran:
@@ -186,13 +197,12 @@ class DashboardLayout extends StatelessWidget {
       case DashboardPage.infoSSComment:
         return 'Info SS Comment';
 
-      
-      case DashboardPage.kawanssManagement:
-        return 'Kawan SS Management';
+    
       case DashboardPage.kawanssPost:
         return 'Post Kawan SS'; // Atau 'Kontributor Post' jika itu halamannya
       case DashboardPage.kawanssComment:
         return 'Kawan SS Comment';
+
 
       case DashboardPage.berita:
         return 'Berita Web Management';
@@ -202,16 +212,23 @@ class DashboardLayout extends StatelessWidget {
         return 'Ganti Password'; 
       case DashboardPage.settings:
         return 'Website Settings';
-      case DashboardPage.userAdminManagement:
-        return 'User Admin Management';
+      case DashboardPage.usersAccountManagement:
+        return 'User Account Management';
+      case DashboardPage.adminManagement:
+        return 'Admin Management';
       
 
-
-      case DashboardPage.report:
-        return 'Report Management';
-
-      case DashboardPage.reportInfoSSPost:
+      case DashboardPage.socialnetworkanalysis:
+        return 'Laporan & Analitik';
+      case DashboardPage.reportCall:
+        return 'Report Audio / Video Call';
+      case DashboardPage.reportUserRegistration:
         return 'Report User Registration';
+      case DashboardPage.reportInfoSSPost:
+        return 'Report Post Info SS';
+      case DashboardPage.reportKawanSSPost:
+        return 'Report Post Kawan SS';
+
 
       case DashboardPage.chatManagement:
         return 'Chat Management';
@@ -220,20 +237,6 @@ class DashboardLayout extends StatelessWidget {
       case DashboardPage.kategoriss:
         return 'Kategori Management';
 
-      // Halaman-halaman lama dari contoh awal
-      case DashboardPage
-          .users: // Jika 'users' dan 'userAdminManagement' berbeda
-        return 'User Management';
-      case DashboardPage.products:
-        return 'Product Management';
-      case DashboardPage.calendar:
-        return 'Calendar';
-      case DashboardPage.charts:
-        return 'Data Charts';
-      case DashboardPage.forms:
-        return 'Form Elements';
-      case DashboardPage.profile:
-        return 'User Profile';
 
       // Default jika ada case yang terlewat
       default:

@@ -1,13 +1,11 @@
-// lib/screens/dashboard/video_call_page.dart
-
 import 'dart:async';
-import 'package:suara_surabaya_admin/providers/dashboard/call_provider.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:suara_surabaya_admin/providers/dashboard/call/call_provider.dart';
 
 class VideoCallPage extends StatefulWidget {
   final String channelName;
@@ -17,7 +15,7 @@ class VideoCallPage extends StatefulWidget {
   final String originalUserId;
   final int originalCallerUid;
   final bool isVideoCall;
-  final String username; // <-- Parameter baru
+  final String username;
 
   const VideoCallPage({
     Key? key,
@@ -28,7 +26,7 @@ class VideoCallPage extends StatefulWidget {
     required this.originalUserId,
     required this.originalCallerUid,
     this.isVideoCall = true,
-    required this.username, // <-- Parameter baru
+    required this.username,
   }) : super(key: key);
 
   @override
@@ -48,25 +46,57 @@ class _VideoCallPageState extends State<VideoCallPage> {
 
   int? _mainRemoteUid;
   bool get _isCaller => widget.uid == widget.originalCallerUid;
-
-  // --- PERBAIKAN 1: State untuk visibilitas kontrol ---
   bool _areControlsVisible = true;
-  // --------------------------------------------------
+
+  // --- TIMER TIMEOUT ---
+  Timer? _waitingTimer;
+  // ---------------------
 
   @override
   void initState() {
     super.initState();
     _callProvider = context.read<CallProvider>();
 
+    // 1. LAPOR KE SERVER BAHWA ADMIN SUDAH MASUK (Stop Timer 'Janitor')
+    _callProvider.setAdminJoined(widget.callId);
+
     if (!_isCaller) {
       _mainRemoteUid = widget.originalCallerUid;
     }
 
     initAgora();
+    
+    // 2. MULAI TIMER AWAL (60 Detik menunggu user join)
+    _startTimeoutTimer(seconds: 60, message: "Lawan bicara tidak bergabung.");
+  }
+
+  void _startTimeoutTimer({required int seconds, required String message}) {
+    _waitingTimer?.cancel(); // Reset timer lama
+    print("⏳ Starting Timer: $seconds detik...");
+    
+    _waitingTimer = Timer(Duration(seconds: seconds), () {
+      if (!mounted) return;
+      
+      // Jika remote user kosong (Sendirian di room)
+      if (_remoteUids.isEmpty) {
+        print("🛑 Timeout ($seconds s): $message");
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("$message Panggilan diakhiri."),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        _hangUp(); // Matikan panggilan & Leave Channel
+      }
+    });
   }
 
   @override
   void dispose() {
+    _waitingTimer?.cancel();
     _disposeEngine();
     super.dispose();
   }
@@ -91,6 +121,13 @@ class _VideoCallPageState extends State<VideoCallPage> {
           onUserJoined: (c, remoteUid, e) {
             setState(() {
               _remoteUids.add(remoteUid);
+              
+              // 3. USER MASUK -> MATIKAN TIMER
+              if (_waitingTimer != null && _waitingTimer!.isActive) {
+                print("✅ User joined ($remoteUid), timer dibatalkan.");
+                _waitingTimer!.cancel();
+              }
+
               if (_isCaller && _mainRemoteUid == null) {
                 _mainRemoteUid = remoteUid;
               }
@@ -99,12 +136,21 @@ class _VideoCallPageState extends State<VideoCallPage> {
           onUserOffline: (c, remoteUid, r) {
             setState(() {
               _remoteUids.remove(remoteUid);
+              
+              // 4. USER KELUAR/PUTUS -> MULAI TIMER PENDEK (15 Detik)
+              // Beri kesempatan user reconnect, kalau tidak -> matikan room.
+              if (_remoteUids.isEmpty) {
+                 _startTimeoutTimer(
+                   seconds: 15, 
+                   message: "Koneksi lawan bicara terputus."
+                 );
+              }
+
               if (remoteUid == _mainRemoteUid) {
                 if (_isCaller) {
                   _mainRemoteUid = _remoteUids.firstOrNull;
-                } else if (remoteUid == widget.originalCallerUid) {
-                  if (mounted) Navigator.of(context).pop();
-                }
+                } 
+                // Hapus logika pop() langsung disini, biarkan timer yang bekerja
               }
             });
           },
@@ -118,25 +164,18 @@ class _VideoCallPageState extends State<VideoCallPage> {
       if (_isCaller) {
         if (widget.isVideoCall) {
           await _engine.enableVideo();
-          await Future.delayed(
-            const Duration(milliseconds: 100),
-          ); // Beri jeda singkat
+          await Future.delayed(const Duration(milliseconds: 100));
           await _engine.startPreview();
         } else {
           await _engine.enableAudio();
         }
       } else {
-        // Admin
-        await _engine
-            .enableVideo(); // Selalu aktifkan video untuk akses device manager
-        await Future.delayed(
-          const Duration(milliseconds: 100),
-        ); // Beri jeda singkat
+        await _engine.enableVideo();
+        await Future.delayed(const Duration(milliseconds: 100));
         if (widget.isVideoCall) {
-          await _engine
-              .startPreview(); // Tapi hanya preview jika ini video call
+          await _engine.startPreview();
         }
-        await _getCameraDevices(); // Selalu ambil device untuk admin
+        await _getCameraDevices();
       }
 
       await _joinChannel();
@@ -191,9 +230,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
       if (otherAdmins.isEmpty) {
         await _callProvider.endCall(widget.callId);
       } else {
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
+        if (mounted) Navigator.of(context).pop();
       }
     }
   }
@@ -202,8 +239,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[900],
-      extendBodyBehindAppBar:
-          true, // Biarkan body berada di belakang AppBar transparan
+      extendBodyBehindAppBar: true,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: AnimatedOpacity(
@@ -248,7 +284,8 @@ class _VideoCallPageState extends State<VideoCallPage> {
               final status = callData['status'];
               if (status == 'completed' ||
                   status == 'rejected' ||
-                  status == 'cancelled') {
+                  status == 'cancelled' ||
+                  status == 'timeout') {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (Navigator.canPop(context)) Navigator.pop(context);
                 });
@@ -275,14 +312,22 @@ class _VideoCallPageState extends State<VideoCallPage> {
     if (!_localUserJoined)
       return const Center(child: CircularProgressIndicator());
 
-    // --- PERBAIKAN UTAMA: Bungkus Stack dengan SafeArea ---
-    // Ini akan memastikan konten di dalamnya tidak tumpang tindih dengan status bar atau AppBar
     return SafeArea(
       child: Stack(
         children: [
-          _buildMainRemoteView(),
+          // Background Hitam Penuh
+          Container(color: Colors.black),
+
+          // Main Video
+          Center(child: _buildMainRemoteView()),
+
+          // Secondary Videos
           _buildSecondaryRemoteViews(),
+
+          // Local Preview
           _buildLocalVideo(),
+
+          // Controls
           AnimatedOpacity(
             opacity: _areControlsVisible ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 300),
@@ -291,21 +336,31 @@ class _VideoCallPageState extends State<VideoCallPage> {
         ],
       ),
     );
-    // --------------------------------------------------
   }
 
   Widget _buildMainRemoteView() {
     if (_mainRemoteUid != null && _remoteUids.contains(_mainRemoteUid)) {
       if (widget.isVideoCall) {
-        return Center(
-          child: AgoraVideoView(
-            controller: VideoViewController.remote(
-              rtcEngine: _engine,
-              canvas: VideoCanvas(uid: _mainRemoteUid!),
-              connection: RtcConnection(channelId: widget.channelName),
+        // --- PERBAIKAN RASIO LANDSCAPE 16:9 ---
+        return AspectRatio(
+          aspectRatio: 16 / 9, // Rasio Landscape Standar
+          child: Container(
+            color:
+                Colors.black, // Bar Hitam Kiri-Kanan jika video user portrait
+            child: AgoraVideoView(
+              controller: VideoViewController.remote(
+                rtcEngine: _engine,
+                canvas: VideoCanvas(
+                  uid: _mainRemoteUid!,
+                  // FIT: Video tampil utuh (tidak terpotong), sisa ruang jadi hitam
+                  renderMode: RenderModeType.renderModeFit,
+                ),
+                connection: RtcConnection(channelId: widget.channelName),
+              ),
             ),
           ),
         );
+        // --------------------------------------
       } else {
         return const Center(
           child: Column(
@@ -323,9 +378,22 @@ class _VideoCallPageState extends State<VideoCallPage> {
       }
     } else {
       return Center(
-        child: Text(
-          "Menunggu ${_isCaller ? 'admin' : 'penelpon'} bergabung...",
-          style: const TextStyle(color: Colors.white),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(color: Colors.white),
+            const SizedBox(height: 16),
+            Text(
+              "Menunggu ${_isCaller ? 'admin' : 'penelpon'} bergabung...",
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            // Tampilkan timer mundur sederhana (opsional, tapi bagus buat UX)
+            const Text(
+              "(Timeout dalam 60s)",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
         ),
       );
     }
@@ -399,11 +467,9 @@ class _VideoCallPageState extends State<VideoCallPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // --- PERBAIKAN 2: Kembalikan dropdown kamera ---
             if (!_isCaller && _cameraDevices.length > 1) _buildCameraSelector(),
             if (!_isCaller && _cameraDevices.length > 1)
               const SizedBox(height: 12),
-            // -------------------------------------------
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
