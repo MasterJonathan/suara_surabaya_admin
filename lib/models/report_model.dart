@@ -1,22 +1,35 @@
+// lib\models\report_model.dart
+
 class DashboardData {
   final UserStats userStats;
   final PostStats postStats;
   final List<TopContent> topContent;
-  final IntegrationStatus integrations; // Tambahan untuk status integrasi
-  final InstagramProfile? instagramProfile; // Opsional, jika ada data IG
+  final IntegrationStatus integrations;
+  final InstagramProfile? instagramProfile;
 
   DashboardData({
     required this.userStats,
     required this.postStats,
     required this.topContent,
     required this.integrations,
-    required this.instagramProfile,
+    this.instagramProfile,
   });
 
   factory DashboardData.fromJson(Map<String, dynamic> json) {
+    // Ambil data users dari json['users']
+    final usersJson = json['users'] ?? {};
+    // Ambil data posts dari json['posts']
+    final postsJson = json['posts'] ?? {};
+
     return DashboardData(
-      userStats: UserStats.fromJson(json['users'] ?? {}),
-      postStats: PostStats.fromJson(json['posts'] ?? {}),
+      userStats: UserStats.fromJson(usersJson),
+      postStats: PostStats(
+        total: usersJson['total_post'] ?? postsJson['total'] ?? 0,
+        new30Days: postsJson['new_30_days'] ?? 0,
+        totalKawanSS:
+            usersJson['total_post_kawanss'] ?? postsJson['total_kawn_ss'] ?? 0,
+        new30DaysKawanSS: postsJson['new_30_days_kawanss'] ?? 0,
+      ),
       topContent:
           (json['top_content'] as List? ?? [])
               .map((e) => TopContent.fromJson(e))
@@ -26,6 +39,41 @@ class DashboardData {
           json['instagram_profile'] != null
               ? InstagramProfile.fromJson(json['instagram_profile'])
               : null,
+    );
+  }
+}
+
+class InstagramProfile {
+  final String id;
+  final String username;
+  final String name;
+  final String biography;
+  final int followersCount;
+  final int followsCount;
+  final int mediaCount;
+  final String profilePictureUrl;
+
+  InstagramProfile({
+    required this.id,
+    required this.username,
+    required this.name,
+    required this.biography,
+    required this.followersCount,
+    required this.followsCount,
+    required this.mediaCount,
+    required this.profilePictureUrl,
+  });
+
+  factory InstagramProfile.fromJson(Map<String, dynamic> json) {
+    return InstagramProfile(
+      id: json['id']?.toString() ?? '',
+      username: json['username'] ?? '',
+      name: json['name'] ?? '',
+      biography: json['biography'] ?? '',
+      followersCount: json['followers_count'] ?? "Data tidak bisa di ambil",
+      followsCount: json['follows_count'] ?? "Data tidak bisa di ambil",
+      mediaCount: json['media_count'] ?? "Data tidak bisa di ambil",
+      profilePictureUrl: json['profile_picture_url'] ?? '',
     );
   }
 }
@@ -47,7 +95,6 @@ class UserStats {
     return UserStats(
       total: json['total'] ?? 0,
       newThisMonth: json['new_this_month'] ?? 0,
-      // Handle jika data dikirim sebagai int atau double
       growthPercentage: (json['growth_percentage'] ?? 0).toDouble(),
       comparisonText: json['comparison_text'] ?? "",
     );
@@ -57,13 +104,22 @@ class UserStats {
 class PostStats {
   final int total;
   final int new30Days;
+  final int totalKawanSS;
+  final int new30DaysKawanSS;
 
-  PostStats({required this.total, required this.new30Days});
+  PostStats({
+    required this.total,
+    required this.new30Days,
+    required this.totalKawanSS,
+    required this.new30DaysKawanSS,
+  });
 
   factory PostStats.fromJson(Map<String, dynamic> json) {
     return PostStats(
-      total: json['total'] ?? 0,
-      new30Days: json['new_30_days'] ?? 0,
+      total: json['total'] ?? "Tidak ada Data",
+      new30Days: json['new_30_days'] ?? "Tidak ada Data",
+      totalKawanSS: json['total_kawan_ss'] ?? "Tidak ada Data",
+      new30DaysKawanSS: json['new_30_days_kawan_ss'] ?? "Tidak ada Data",
     );
   }
 }
@@ -93,13 +149,11 @@ class TopContent {
 
   factory TopContent.fromJson(Map<String, dynamic> json) {
     return TopContent(
-      id: json['id'] ?? '',
-      // Backend Python bisa mengirim 'judul' atau 'title'
+      id: json['id']?.toString() ?? '',
       title: json['judul'] ?? json['title'] ?? "No Title",
-      // Backend Python mengirim 'jumlahView' atau 'views'
       views: json['jumlahView'] ?? json['views'] ?? 0,
       category: json['kategori'] ?? json['category'] ?? "Umum",
-      author: json['author'] ?? "Admin", // Default jika null
+      author: json['author'] ?? "Admin",
       image: json['gambar'] ?? '',
       likes: json['jumlahLike'] ?? 0,
       comments: json['jumlahComment'] ?? 0,
@@ -111,7 +165,6 @@ class TopContent {
   }
 }
 
-// Model tambahan untuk status Integrasi (Sheets & Analytics)
 class IntegrationStatus {
   final bool sheetsConnected;
   final bool analyticsConnected;
@@ -135,7 +188,6 @@ class IntegrationStatus {
   }
 }
 
-// Model terpisah untuk Data Analytics Detail (jika dipanggil via endpoint /analytics)
 class AnalyticsData {
   final int activeUsersNow;
   final int pageViewsToday;
@@ -148,47 +200,16 @@ class AnalyticsData {
   });
 
   factory AnalyticsData.fromJson(Map<String, dynamic> json) {
+    // Menangani struktur nested 'data' atau flat
     final data = json['data'] ?? json;
 
     return AnalyticsData(
       activeUsersNow: data['active_users_now'] ?? 0,
       pageViewsToday: data['page_views_today'] ?? 0,
-      connected: json['status'] == 'success' || data['status'] == 'connected',
-    );
-  }
-}
-
-class InstagramProfile {
-  final String id;
-  final String username;
-  final String name;
-  final String biography;
-  final int followersCount;
-  final int followsCount;
-  final int mediaCount;
-  final String profilePictureUrl;
-
-  InstagramProfile({
-    required this.id,
-    required this.username,
-    required this.name,
-    required this.biography,
-    required this.followersCount,
-    required this.followsCount,
-    required this.mediaCount,
-    required this.profilePictureUrl,
-  });
-
-  factory InstagramProfile.fromJson(Map<String, dynamic> json) {
-    return InstagramProfile(
-      id: json['id'] ?? '',
-      username: json['username'] ?? '',
-      name: json['name'] ?? '',
-      biography: json['biography'] ?? '',
-      followersCount: json['followers_count'] ?? 0,
-      followsCount: json['follows_count'] ?? 0,
-      mediaCount: json['media_count'] ?? 0,
-      profilePictureUrl: json['profile_picture_url'] ?? '',
+      connected:
+          json['status'] == 'success' ||
+          data['status'] == 'connected' ||
+          json['status'] == 'connected',
     );
   }
 }

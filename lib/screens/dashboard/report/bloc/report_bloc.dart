@@ -1,4 +1,6 @@
+import 'dart:developer';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:suara_surabaya_admin/models/report_model.dart';
 import 'report_event.dart';
 import 'report_state.dart';
 import '../data/report_service.dart';
@@ -20,9 +22,17 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     try {
       final dashboardData = await reportService.fetchMainDashboard();
 
+      InstagramProfile? instagramProfile;
+      try {
+        instagramProfile = await reportService.fetchInstagramProfile();
+      } catch (e) {
+        log("Warning: Gagal memuat profil IG: $e");
+      }
+
       emit(
         ReportLoadedState(
           dashboardData: dashboardData,
+          instagramProfile: instagramProfile,
           isAnalyticsLoading: true,
         ),
       );

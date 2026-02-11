@@ -121,7 +121,7 @@ class _ReportViewState extends State<_ReportView>
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           blurRadius: 30,
                           offset: const Offset(0, 10),
                         ),
@@ -159,6 +159,9 @@ class _ReportViewState extends State<_ReportView>
                     padding: const EdgeInsets.all(32),
                     children: [
                       _buildHeader(context),
+                      const SizedBox(height: 24),
+                      if (state.instagramProfile != null)
+                        _buildInstagramProfileHeader(state.instagramProfile!),
                       const SizedBox(height: 40),
                       _buildStatsGrid(data),
                       const SizedBox(height: 32),
@@ -187,7 +190,7 @@ class _ReportViewState extends State<_ReportView>
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -198,8 +201,8 @@ class _ReportViewState extends State<_ReportView>
                   children: [
                     Container(
                       padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFEF2F2),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -253,20 +256,279 @@ class _ReportViewState extends State<_ReportView>
     );
   }
 
+  // ==================== INSTAGRAM SECTION - CLEAN & MODERN ====================
+  Widget _buildInstagramProfileHeader(InstagramProfile ig) {
+    final fmt = NumberFormat.compact();
+
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 900),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        return Opacity(
+          opacity: animValue,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - animValue)),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Header Section
+                  Container(
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF667EEA).withValues(alpha: 0.08),
+                          const Color(0xFF764BA2).withValues(alpha: 0.08),
+                        ],
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Profile Picture with Clean Border
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF667EEA,
+                                ).withValues(alpha: 0.3),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: CircleAvatar(
+                              radius: 42,
+                              backgroundImage: NetworkImage(
+                                ig.profilePictureUrl,
+                              ),
+                              backgroundColor: Colors.grey[100],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+
+                        // Profile Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      ig.name,
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: -0.3,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    Icons.verified,
+                                    size: 18,
+                                    color: const Color(0xFF667EEA),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "@${ig.username}",
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF667EEA,
+                                  ).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(
+                                      0xFF667EEA,
+                                    ).withValues(alpha: 0.2),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.link,
+                                      size: 14,
+                                      color: const Color(0xFF667EEA),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Instagram Terhubung',
+                                      style: TextStyle(
+                                        color: const Color(0xFF667EEA),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Stats Section
+                  Container(
+                    padding: const EdgeInsets.all(28),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildCleanStatItem(
+                            label: "Posts",
+                            value: ig.mediaCount.toString(),
+                            icon: Icons.grid_view_rounded,
+                            color: const Color(0xFF667EEA),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 50,
+                          color: Colors.grey.shade200,
+                        ),
+                        Expanded(
+                          child: _buildCleanStatItem(
+                            label: "Followers",
+                            value: ig.followersCount.toString(),
+                            icon: Icons.people_outline_rounded,
+                            color: const Color(0xFF764BA2),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 50,
+                          color: Colors.grey.shade200,
+                        ),
+                        Expanded(
+                          child: _buildCleanStatItem(
+                            label: "Following",
+                            value: ig.followsCount.toString(),
+                            icon: Icons.person_add_outlined,
+                            color: const Color(0xFF667EEA),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCleanStatItem({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 24, color: color),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+  // ==================== END OF INSTAGRAM SECTION ====================
+
   Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primary.withOpacity(0.1),
-            AppColors.primary.withOpacity(0.05),
+            AppColors.primary.withValues(alpha: 0.1),
+            AppColors.primary.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -274,14 +536,17 @@ class _ReportViewState extends State<_ReportView>
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                colors: [
+                  AppColors.primary,
+                  AppColors.primary.withValues(alpha: 0.8),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
+                  color: AppColors.primary.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -351,7 +616,7 @@ class _ReportViewState extends State<_ReportView>
               trend: data.userStats.growthPercentage,
             ),
             _buildModernStatCard(
-              title: "Total Postingan",
+              title: "Info SS Posts",
               value: fmt.format(data.postStats.total),
               subtitle: "+${data.postStats.new30Days} (30 hari)",
               icon: Icons.article_rounded,
@@ -366,10 +631,10 @@ class _ReportViewState extends State<_ReportView>
               isComparison: true,
             ),
             _buildModernStatCard(
-              title: "Status Sistem",
-              value: "Online",
-              subtitle: "Backend & Database",
-              icon: Icons.cloud_done_rounded,
+              title: "Kawan SS Posts",
+              value: fmt.format(data.postStats.totalKawanSS),
+              subtitle: "+${data.postStats.new30DaysKawanSS} (30 hari)",
+              icon: Icons.auto_awesome_motion_rounded,
               gradientColors: const [Color(0xFF10B981), Color(0xFF059669)],
             ),
           ],
@@ -402,7 +667,7 @@ class _ReportViewState extends State<_ReportView>
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: gradientColors[0].withOpacity(0.15),
+                    color: gradientColors[0].withValues(alpha: 0.15),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -412,7 +677,6 @@ class _ReportViewState extends State<_ReportView>
                 borderRadius: BorderRadius.circular(20),
                 child: Stack(
                   children: [
-                    // Gradient background decoration
                     Positioned(
                       top: -20,
                       right: -20,
@@ -422,15 +686,14 @@ class _ReportViewState extends State<_ReportView>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              gradientColors[0].withOpacity(0.1),
-                              gradientColors[1].withOpacity(0.05),
+                              gradientColors[0].withValues(alpha: 0.1),
+                              gradientColors[1].withValues(alpha: 0.05),
                             ],
                           ),
                           shape: BoxShape.circle,
                         ),
                       ),
                     ),
-                    // Content
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
@@ -451,7 +714,9 @@ class _ReportViewState extends State<_ReportView>
                                   borderRadius: BorderRadius.circular(14),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: gradientColors[0].withOpacity(0.3),
+                                      color: gradientColors[0].withValues(
+                                        alpha: 0.3,
+                                      ),
                                       blurRadius: 8,
                                       offset: const Offset(0, 4),
                                     ),
@@ -474,10 +739,10 @@ class _ReportViewState extends State<_ReportView>
                                         trend >= 0
                                             ? const Color(
                                               0xFF10B981,
-                                            ).withOpacity(0.1)
+                                            ).withValues(alpha: 0.1)
                                             : const Color(
                                               0xFFEF4444,
-                                            ).withOpacity(0.1),
+                                            ).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Row(
@@ -573,7 +838,7 @@ class _ReportViewState extends State<_ReportView>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
+            color: Colors.grey.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -587,7 +852,7 @@ class _ReportViewState extends State<_ReportView>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -727,14 +992,17 @@ class _ReportViewState extends State<_ReportView>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            gradientColors[0].withOpacity(0.05),
-            gradientColors[1].withOpacity(0.02),
+            gradientColors[0].withValues(alpha: 0.05),
+            gradientColors[1].withValues(alpha: 0.02),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: gradientColors[0].withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: gradientColors[0].withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -752,7 +1020,7 @@ class _ReportViewState extends State<_ReportView>
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: gradientColors[0].withOpacity(0.3),
+                      color: gradientColors[0].withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -812,7 +1080,7 @@ class _ReportViewState extends State<_ReportView>
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(
-                            color: gradientColors[0].withOpacity(0.3),
+                            color: gradientColors[0].withValues(alpha: 0.3),
                           ),
                         ),
                       ),
@@ -835,7 +1103,7 @@ class _ReportViewState extends State<_ReportView>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
+            color: Colors.grey.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -855,7 +1123,7 @@ class _ReportViewState extends State<_ReportView>
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFF59E0B).withOpacity(0.3),
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -883,20 +1151,13 @@ class _ReportViewState extends State<_ReportView>
             ],
           ),
           const SizedBox(height: 24),
-
-          // Responsive layout: Table for desktop/tablet, Cards for mobile
           LayoutBuilder(
             builder: (context, constraints) {
-              // Mobile view: Card layout
               if (constraints.maxWidth < 600) {
                 return _buildMobileContentList(contents);
-              }
-              // Tablet view: Condensed table
-              else if (constraints.maxWidth < 900) {
+              } else if (constraints.maxWidth < 900) {
                 return _buildTabletContentTable(contents);
-              }
-              // Desktop view: Full table
-              else {
+              } else {
                 return _buildDesktopContentTable(contents);
               }
             },
@@ -906,7 +1167,6 @@ class _ReportViewState extends State<_ReportView>
     );
   }
 
-  // Desktop: Full table with all columns
   Widget _buildDesktopContentTable(List<TopContent> contents) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -920,56 +1180,11 @@ class _ReportViewState extends State<_ReportView>
           dividerThickness: 0,
           columnSpacing: 24,
           columns: [
-            DataColumn(
-              label: Text(
-                '#',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Judul',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Kategori',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Views',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Likes',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
+            DataColumn(label: _headerText('#')),
+            DataColumn(label: _headerText('Judul')),
+            DataColumn(label: _headerText('Kategori')),
+            DataColumn(label: _headerText('Views')),
+            DataColumn(label: _headerText('Likes')),
           ],
           rows:
               contents.asMap().entries.map((entry) {
@@ -977,108 +1192,14 @@ class _ReportViewState extends State<_ReportView>
                 final item = entry.value;
                 return DataRow(
                   cells: [
+                    DataCell(_buildRankBadge(index)),
+                    DataCell(_buildTitleCell(item.title, 400)),
+                    DataCell(_buildCategoryBadge(item.category)),
                     DataCell(
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          gradient:
-                              index <= 3
-                                  ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFBBF24),
-                                      Color(0xFFF59E0B),
-                                    ],
-                                  )
-                                  : null,
-                          color: index > 3 ? Colors.grey.shade100 : null,
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '$index',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: index <= 3 ? Colors.white : Colors.grey[600],
-                          ),
-                        ),
-                      ),
+                      _buildStatCell(Icons.visibility_outlined, item.views),
                     ),
                     DataCell(
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 400),
-                        child: Text(
-                          item.title,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 2,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8B5CF6).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          item.category,
-                          style: const TextStyle(
-                            color: Color(0xFF8B5CF6),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.visibility_outlined,
-                            size: 16,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            NumberFormat.compact().format(item.views),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.favorite_outline,
-                            size: 16,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            NumberFormat.compact().format(item.likes),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildStatCell(Icons.favorite_outline, item.likes),
                     ),
                   ],
                 );
@@ -1088,7 +1209,91 @@ class _ReportViewState extends State<_ReportView>
     );
   }
 
-  // Tablet: Condensed table without category column
+  Widget _headerText(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        color: Colors.grey.shade700,
+        fontSize: 13,
+      ),
+    );
+  }
+
+  Widget _buildRankBadge(int index) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        gradient:
+            index <= 3
+                ? const LinearGradient(
+                  colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
+                )
+                : null,
+        color: index > 3 ? Colors.grey.shade100 : null,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '$index',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          color: index <= 3 ? Colors.white : Colors.grey[600],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTitleCell(String title, double maxWidth) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Text(
+        title,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 2,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          height: 1.3,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryBadge(String category) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        category,
+        style: const TextStyle(
+          color: Color(0xFF8B5CF6),
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCell(IconData icon, int value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: Colors.grey),
+        const SizedBox(width: 6),
+        Text(
+          NumberFormat.compact().format(value),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTabletContentTable(List<TopContent> contents) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -1102,46 +1307,10 @@ class _ReportViewState extends State<_ReportView>
           dividerThickness: 0,
           columnSpacing: 16,
           columns: [
-            DataColumn(
-              label: Text(
-                '#',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Judul',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Views',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Likes',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
+            DataColumn(label: _headerText('#')),
+            DataColumn(label: _headerText('Judul')),
+            DataColumn(label: _headerText('Views')),
+            DataColumn(label: _headerText('Likes')),
           ],
           rows:
               contents.asMap().entries.map((entry) {
@@ -1149,113 +1318,13 @@ class _ReportViewState extends State<_ReportView>
                 final item = entry.value;
                 return DataRow(
                   cells: [
+                    DataCell(_buildRankBadge(index)),
+                    DataCell(_buildTitleCell(item.title, 250)),
                     DataCell(
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          gradient:
-                              index <= 3
-                                  ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFBBF24),
-                                      Color(0xFFF59E0B),
-                                    ],
-                                  )
-                                  : null,
-                          color: index > 3 ? Colors.grey.shade100 : null,
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '$index',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: index <= 3 ? Colors.white : Colors.grey[600],
-                          ),
-                        ),
-                      ),
+                      _buildStatCell(Icons.visibility_outlined, item.views),
                     ),
                     DataCell(
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 250),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              item.title,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 2,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                height: 1.3,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF8B5CF6).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                item.category,
-                                style: const TextStyle(
-                                  color: Color(0xFF8B5CF6),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.visibility_outlined,
-                            size: 16,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            NumberFormat.compact().format(item.views),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.favorite_outline,
-                            size: 16,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            NumberFormat.compact().format(item.likes),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildStatCell(Icons.favorite_outline, item.likes),
                     ),
                   ],
                 );
@@ -1265,7 +1334,6 @@ class _ReportViewState extends State<_ReportView>
     );
   }
 
-  // Mobile: Card-based list view
   Widget _buildMobileContentList(List<TopContent> contents) {
     return ListView.separated(
       shrinkWrap: true,
@@ -1275,7 +1343,6 @@ class _ReportViewState extends State<_ReportView>
       itemBuilder: (context, index) {
         final item = contents[index];
         final rank = index + 1;
-
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1284,7 +1351,7 @@ class _ReportViewState extends State<_ReportView>
             border: Border.all(
               color:
                   rank <= 3
-                      ? const Color(0xFFF59E0B).withOpacity(0.3)
+                      ? const Color(0xFFF59E0B).withValues(alpha: 0.3)
                       : Colors.grey.shade200,
               width: rank <= 3 ? 2 : 1,
             ),
@@ -1292,50 +1359,12 @@ class _ReportViewState extends State<_ReportView>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Ranking badge
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient:
-                      rank <= 3
-                          ? const LinearGradient(
-                            colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                          : null,
-                  color: rank > 3 ? Colors.grey.shade200 : null,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow:
-                      rank <= 3
-                          ? [
-                            BoxShadow(
-                              color: const Color(0xFFF59E0B).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                          : null,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$rank',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: rank <= 3 ? Colors.white : Colors.grey[700],
-                  ),
-                ),
-              ),
+              _buildRankBadge(rank),
               const SizedBox(width: 12),
-
-              // Content details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title
                     Text(
                       item.title,
                       style: const TextStyle(
@@ -1344,84 +1373,15 @@ class _ReportViewState extends State<_ReportView>
                         height: 1.4,
                       ),
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-
-                    // Category
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8B5CF6).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        item.category,
-                        style: const TextStyle(
-                          color: Color(0xFF8B5CF6),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
+                    _buildCategoryBadge(item.category),
                     const SizedBox(height: 12),
-
-                    // Stats row
                     Row(
                       children: [
-                        // Views
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.visibility_outlined,
-                                size: 16,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  NumberFormat.compact().format(item.views),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _buildStatCell(Icons.visibility_outlined, item.views),
                         const SizedBox(width: 16),
-
-                        // Likes
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.favorite_outline,
-                                size: 16,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  NumberFormat.compact().format(item.likes),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _buildStatCell(Icons.favorite_outline, item.likes),
                       ],
                     ),
                   ],

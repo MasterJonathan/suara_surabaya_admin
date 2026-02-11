@@ -27,18 +27,6 @@ class ReportService {
     }
   }
 
-  Future<InstagramProfile> fetchInstagramProfile() async {
-    try {
-      final response = await _dio.get('$_baseUrl/instagram/profile');
-      if (response.statusCode == 200 && response.data['status'] == 'success') {
-        return InstagramProfile.fromJson(response.data['data']);
-      }
-      throw Exception("Gagal memuat profile Instagram");
-    } catch (e) {
-      throw Exception("Error Instagram Profile: $e");
-    }
-  }
-
   Future<AnalyticsData> fetchAnalytics() async {
     try {
       final response = await _dio.get('$_baseUrl/report/analytics');
@@ -51,7 +39,6 @@ class ReportService {
     }
   }
 
-  // 3. Trigger Export Sheets
   Future<String> exportToSheets() async {
     try {
       final response = await _dio.post('$_baseUrl/report/export/sheets');
@@ -62,5 +49,13 @@ class ReportService {
     } catch (e) {
       throw Exception("Error Export: $e");
     }
+  }
+
+  Future<InstagramProfile> fetchInstagramProfile() async {
+    final response = await _dio.get('$_baseUrl/instagram/profile');
+    if (response.statusCode == 200) {
+      return InstagramProfile.fromJson(response.data);
+    }
+    throw Exception("Gagal");
   }
 }
